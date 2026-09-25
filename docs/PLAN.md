@@ -315,7 +315,7 @@ carries one of these labels, and sources are never blended silently:
 | **Local web app**: Python server + browser UI, started by a `.bat`/`.sh` | Hover-heavy UI wants a browser; MathJax renders TeX faithfully; nothing to install beyond Python; works on Windows, Mac, Linux; no Electron build step. |
 | **Python 3.11+**, FastAPI + uvicorn | Best ecosystem for the parsing side (`pypandoc_binary`, `pylatexenc`, `bibtexparser`, `beautifulsoup4`) and the official `anthropic` SDK. |
 | **pandoc** (bundled via pip) for LaTeX | Verified today on theorem environments, labels, citations, `\input`, macros. Far more robust than a home-grown parser; LaTeXML would be higher fidelity but is a painful Windows install and slow. |
-| **MathJax 3**, vendored | Widest LaTeX-math coverage; `\class{}` lets the server tag hover targets (verified today); works offline. |
+| **MathJax 4**, vendored (TeX font) | Widest LaTeX-math coverage; `\class{}` lets the server tag hover targets; automatic line breaking of long formulas (the reason for moving from version 3); works offline. |
 | **Vanilla JavaScript** front end | No build tooling; the UI is one page (reader + panel). Can move to a framework later if it grows. |
 | **JSON + SQLite** on disk for the library and caches | Simple, inspectable, no database server. |
 | **Claude API** via the official `anthropic` SDK | See Section 6. Structured JSON outputs for the glossary pass, prompt caching for repeated questions about the same paper, document citations to quote exact passages from cited papers, and a server-side web search tool for the last-resort lookup. |

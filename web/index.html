@@ -7,8 +7,9 @@
 <link rel="stylesheet" href="/static/styles.css">
 <script>
 window.MathJax = {
+  loader: { load: ['[tex]/html', '[tex]/mathtools', '[tex]/boldsymbol', '[tex]/cancel', '[tex]/braket'] },
   tex: {
-    packages: {'[+]': ['html', 'mathtools', 'boldsymbol', 'ams', 'newcommand', 'configmacros', 'braket', 'cancel']},
+    packages: {'[+]': ['html', 'mathtools', 'boldsymbol', 'cancel', 'braket', 'ams', 'newcommand', 'configmacros']},
     inlineMath: [['\\(', '\\)']],
     displayMath: [['\\[', '\\]']],
     processEnvironments: true,
@@ -21,12 +22,22 @@ window.MathJax = {
     },
     formatError: function (jax, err) { return jax.formatError(err); }
   },
-  chtml: { fontURL: '/static/vendor/mathjax/output/chtml/fonts/woff-v2', scale: 1.0 },
-  options: { enableMenu: false, ignoreHtmlClass: 'pa-nomath' },
+  output: {
+    font: 'mathjax-tex',
+    fontPath: '/static/vendor/mathjax4/fonts/%%FONT%%-font',
+    displayOverflow: 'linebreak',
+    linebreaks: { inline: true, width: '100%', lineleading: 0.2 }
+  },
+  options: {
+    enableMenu: false, enableEnrichment: false, enableComplexity: false, enableSpeech: false, enableBraille: false,
+    enableExplorer: false, enableExplorerHelp: false, ignoreHtmlClass: 'pa-nomath',
+    a11y: { speech: false, braille: false },
+    menuOptions: { settings: { enrich: false, speech: false, braille: false, collapsible: false, assistiveMml: false } }
+  },
   startup: { typeset: false }
 };
 </script>
-<script src="/static/vendor/mathjax/tex-chtml-full.js" id="MathJax-script" async></script>
+<script src="/static/vendor/mathjax4/tex-chtml.js" id="MathJax-script" async></script>
 </head>
 <body>
 <header id="topbar">
