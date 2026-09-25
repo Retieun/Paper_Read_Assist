@@ -45,9 +45,11 @@ window.MathJax = {
     <div id="dropzone" class="dropzone">
       <div class="dz-inner">
         <h1>Drop a paper here</h1>
-        <p>A <code>.tex</code> file (with its <code>.bib</code>), a folder as a <code>.zip</code>, or an arXiv source archive (<code>.tar.gz</code>).</p>
+        <p>A <code>.tex</code> file <strong>together with its <code>.bib</code></strong> (select or drop both at once), a folder as a <code>.zip</code>, or an arXiv source archive (<code>.tar.gz</code>).</p>
         <p>Or type a path on this computer:</p>
         <form id="path-form"><input id="path-input" type="text" placeholder="C:\papers\mypaper\main.tex   or   /home/me/paper/" spellcheck="false"><button class="btn btn-primary" type="submit">Open</button></form>
+        <p>Or fetch a paper's LaTeX source from arXiv:</p>
+        <form id="arxiv-form"><input id="arxiv-input" type="text" placeholder="arXiv id or URL, e.g. 1207.3674" spellcheck="false"><button class="btn" type="submit">Fetch from arXiv</button></form>
         <div id="library-list" class="library-list"></div>
         <p class="dz-status" id="dz-status"></p>
       </div>
@@ -55,6 +57,7 @@ window.MathJax = {
     <article id="reader" class="reader pa-nomath-outside" hidden></article>
   </main>
   <aside id="panel" class="panel">
+    <div id="panel-resizer" class="resizer" title="drag to resize"></div>
     <div class="panel-tabs">
       <button class="tab active" data-tab="cards">Explain</button>
       <button class="tab" data-tab="pins">Pinned <span id="pin-count" class="count">0</span></button>
@@ -66,7 +69,8 @@ window.MathJax = {
         <div class="card card-empty">
           <p><strong>Hover</strong> a symbol in a formula or an emphasised term in the text to see what it means in this paper.</p>
           <p><strong>Click</strong> to keep the card; click inside a card to follow a definition down.</p>
-          <p class="legend">Sources: <span class="src src-paper">This paper</span> <span class="src src-dictionary">Standard notation</span> <span class="src src-llm">LLM, from this paper's text</span></p>
+          <p><strong>Shift-click</strong> a second symbol in the same formula to explain everything between them.</p>
+          <p class="legend">Sources: <span class="src src-paper">This paper</span> <span class="src src-cited">Cited paper</span> <span class="src src-dictionary">Standard notation</span> <span class="src src-llm">LLM, from this paper's text</span></p>
         </div>
       </div>
     </div>

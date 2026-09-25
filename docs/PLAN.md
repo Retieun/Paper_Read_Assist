@@ -395,14 +395,19 @@ least one real arXiv paper:
 Deliberately **not** in Phase 1: fetching cited papers, arXiv HTML input, web
 search, prerequisite graph.
 
-### Phase 2 — Cited papers and arXiv
+### Phase 2 — Cited papers and arXiv (partly built)
 
-- Citation resolution: `.bib`/`.bbl` → arXiv id (direct, DOI, title search).
-- Fetch and ingest cited sources into the library; jump to "Def. 2.1"-style
-  pointers; search cited term indexes; "Cited paper" cards with links.
-- arXiv id / URL as input; arXiv HTML (LaTeXML) as an alternative ingest path.
-- The agentic resolver (tool loop) replacing the fixed chain for hard cases.
-- Two-hop recursion with caching.
+- [x] Citation resolution: `.bib`/`.bbl` → arXiv id (bibliography fields, then a
+      title search on the arXiv API).
+- [x] Fetch and ingest cited sources into the library; jump to "Def. 2.1"-style
+      pointers; search cited term and symbol indexes; "Cited paper" cards whose
+      text is hoverable and resolves inside that paper.
+- [x] arXiv id / URL as input.
+- [x] Compact citation labels following the bibliography style, with a
+      References section and per-entry index buttons.
+- [ ] arXiv HTML (LaTeXML) as an alternative ingest path.
+- [ ] The agentic resolver (tool loop) replacing the fixed chain for hard cases.
+- [ ] Two-hop recursion with caching (today each hop is a click).
 
 ### Phase 3 — Depth and polish
 

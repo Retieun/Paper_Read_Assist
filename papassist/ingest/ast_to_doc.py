@@ -14,14 +14,17 @@ import re
 from typing import Any, Optional
 
 from .bib import BibEntry
+from .citations import bib_anchor, bibliography_block_html, compute_labels, label_mode
 from .document import Block, Document, MathItem
 from .mathenv import prepare_display_math
 from .preamble import Preamble, TheoremDecl
 from ..render.mathunits import analyze_math
 
-PH_OPEN, PH_CLOSE = "\u27e6", "\u27e7"  # ⟦ ⟧
+PH_OPEN, PH_CLOSE = "\u27e6", "\u27e7"    # ⟦ ⟧ inline formula placeholder
+DPH_OPEN, DPH_CLOSE = "\u27ea", "\u27eb"  # ⟪ ⟫ displayed formula placeholder
 DIAGRAM_RE = re.compile(r"\[PAPASSIST-DIAGRAM-(\d+)\]")
 REF_RE = re.compile(r"\{\{REF:([^}]*)\}\}")
+CITE_RE = re.compile(r"\{\{CITE:([^}]*)\}\}")
 
 
 def esc(s: str) -> str:
@@ -177,6 +180,9 @@ class DocBuilder:
         self._uid = 1
         self.title = ""
         self.authors: list[str] = []
+        self.cited_keys: list[str] = []
+        self.cite_labels: dict[str, str] = {}
+        self.cite_mode = label_mode(pre.bib_style, pre.biblatex_style)
 
     # -- ids ---------------------------------------------------------------
     def new_bid(self) -> str:
@@ -193,6 +199,7 @@ class DocBuilder:
         self._handle_meta(meta)
         for b in self.ast.get("blocks", []):
             self._handle_top_block(b)
+        self._finish_citations()
         self._resolve_refs()
         return Document(
             paper_id=self.paper_id,
@@ -208,6 +215,7 @@ class DocBuilder:
             warnings=self.warnings,
             source_main=self.source_main,
             documentclass=self.pre.documentclass,
+            cite_labels=self.cite_labels,
         )
 
     # -- meta ------------------------------------------------------------------
@@ -668,32 +676,40 @@ class DocBuilder:
 
     def _render_cite(self, c: list, ctx: _Ctx) -> tuple[str, str, str]:
         citations, fallback = c
-        parts_html, parts_text = [], []
+        labels_html, labels_text = [], []
         keys = []
         titles = []
+        prefix_h = prefix_t = ""
+        suffix_h = suffix_t = ""
         for cit in citations:
             key = cit.get("citationId", "")
             keys.append(key)
+            if key not in self.cited_keys:
+                self.cited_keys.append(key)
             entry = self.bib.get(key)
-            short = entry.short if entry else key
             pre_h, pre_t, _ = self._render_inlines(cit.get("citationPrefix", []), ctx)
             suf_h, suf_t, _ = self._render_inlines(cit.get("citationSuffix", []), ctx)
-            label_h = esc(short)
-            label_t = short
             if pre_t.strip():
-                label_h = pre_h.strip() + " " + label_h
-                label_t = pre_t.strip() + " " + label_t
+                prefix_h, prefix_t = pre_h.strip(), pre_t.strip()
             if suf_t.strip():
-                label_h += ", " + suf_h.strip()
-                label_t += ", " + suf_t.strip()
-            parts_html.append(label_h)
-            parts_text.append(label_t)
+                suffix_h, suffix_t = suf_h.strip(), suf_t.strip()
+            ph = "{{CITE:" + key + "}}"
+            labels_html.append(f"<a class=\"pa-cite-num\" href=\"#{attr_esc(bib_anchor(key))}\" data-key=\"{attr_esc(key)}\">{ph}</a>")
+            labels_text.append(ph)
             if entry:
-                titles.append(f"{short}: {entry.title}" + (f". {entry.venue}" if entry.venue else ""))
+                titles.append(f"{entry.short}: {entry.title}" + (f". {entry.venue}" if entry.venue else ""))
+            else:
+                titles.append(key)
             ctx.cites.append({"key": key, "prefix": pre_t.strip(), "suffix": suf_t.strip()})
+        inner_h = ", ".join(labels_html)
+        inner_t = ", ".join(labels_text)
+        if prefix_t:
+            inner_h, inner_t = prefix_h + " " + inner_h, prefix_t + " " + inner_t
+        if suffix_t:
+            inner_h, inner_t = inner_h + ", " + suffix_h, inner_t + ", " + suffix_t
         title_attr = attr_esc(" | ".join(titles)) if titles else ""
-        h = (f"<span class=\"pa-cite\" data-keys=\"{attr_esc(','.join(keys))}\" title=\"{title_attr}\">[" + "; ".join(parts_html) + "]</span>")
-        t = "[" + "; ".join(parts_text) + "]"
+        h = f"<span class=\"pa-cite\" data-keys=\"{attr_esc(','.join(keys))}\" title=\"{title_attr}\">[{inner_h}]</span>"
+        t = "[" + inner_t + "]"
         return h, t, t
 
     def _render_math(self, c: list, ctx: _Ctx) -> tuple[str, str, str]:
@@ -710,7 +726,7 @@ class DocBuilder:
             prep = prepare_display_math(tex, self.numbering.next_equation)
             analysis = analyze_math(prep.render, self._uid)
             self._uid += len(analysis.units)
-            item = MathItem(id=mid, tex=prep.tex, display=True, tagged=analysis.tagged, bare=prep.bare, block="",
+            item = MathItem(id=mid, tex=prep.tex, display=True, tagged=analysis.tagged, src=prep.render, bare=prep.bare, block="",
                             units=[u.to_dict() for u in analysis.units], labels=prep.labels, numbers=prep.numbers)
             self.math[mid] = item
             for lbl, num in prep.label_numbers.items():
@@ -721,16 +737,45 @@ class DocBuilder:
             content = esc(analysis.tagged)
             h = f"<span class=\"pa-math pa-display\" data-mid=\"{mid}\"{anchor}>{content}</span>"
             t = "\n$$" + prep.tex + "$$\n"
-            tp = f" {PH_OPEN}{mid}{PH_CLOSE} "
+            tp = f" {DPH_OPEN}{mid}{DPH_CLOSE} "
             return h, t, tp
         clean = re.sub(r"\\label\s*\{[^}]*\}", "", tex).strip()
         analysis = analyze_math(clean, self._uid)
         self._uid += len(analysis.units)
-        item = MathItem(id=mid, tex=clean, display=False, tagged=analysis.tagged, bare=False, block="",
+        item = MathItem(id=mid, tex=clean, display=False, tagged=analysis.tagged, src=clean, bare=False, block="",
                         units=[u.to_dict() for u in analysis.units])
         self.math[mid] = item
         h = f"<span class=\"pa-math\" data-mid=\"{mid}\">\\({esc(analysis.tagged)}\\)</span>"
         return h, "$" + clean + "$", f"{PH_OPEN}{mid}{PH_CLOSE}"
+
+    # -- citations --------------------------------------------------------------
+    def _finish_citations(self) -> None:
+        if not self.cited_keys:
+            return
+        labels, order = compute_labels(self.cited_keys, self.bib, self.cite_mode)
+        self.cite_labels = labels
+
+        def sub_html(m: re.Match) -> str:
+            return esc(labels.get(m.group(1), m.group(1)))
+
+        def sub_text(m: re.Match) -> str:
+            return labels.get(m.group(1), m.group(1))
+
+        for b in self.blocks:
+            if "{{CITE:" in b.html:
+                b.html = CITE_RE.sub(sub_html, b.html)
+            if "{{CITE:" in b.text:
+                b.text = CITE_RE.sub(sub_text, b.text)
+            if "{{CITE:" in b.text_ph:
+                b.text_ph = CITE_RE.sub(sub_text, b.text_ph)
+            if b.title and "{{CITE:" in b.title:
+                b.title = CITE_RE.sub(sub_text, b.title)
+        for lbl, info in self.labels.items():
+            if info.get("title") and "{{CITE:" in info["title"]:
+                info["title"] = CITE_RE.sub(sub_text, info["title"])
+        html_, text = bibliography_block_html(order, labels, self.bib)
+        bid = self.new_bid()
+        self.blocks.append(Block(id=bid, kind="bibliography", html=html_, text=text, text_ph=text, section=self.numbering.current_section))
 
     # -- cross references -------------------------------------------------------
     def _resolve_refs(self) -> None:

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional
 
 from ..ingest.document import Block, Document
-from .textutil import PH_RE, canonical_term, split_sentences, words_only
+from .textutil import PH_ANY_RE, PH_RE, canonical_term, split_sentences, words_only
 
 
 @dataclass
@@ -50,7 +50,7 @@ def _find_emph_span(block: Block, phrase: str) -> Optional[tuple[int, int]]:
     if not words:
         return None
     text = block.text_ph
-    plain = PH_RE.sub(lambda m: " " * len(m.group(0)), text)   # same length: offsets stay valid
+    plain = PH_ANY_RE.sub(lambda m: " " * len(m.group(0)), text)   # same length: offsets stay valid
     pattern = r"\b" + r"\W+".join(re.escape(w) for w in words.split()) + r"\b"
     m = re.search(pattern, plain, re.I)
     if not m:
@@ -119,7 +119,7 @@ def extract_terms(doc: Document) -> list[TermEntry]:
             before = block.text_ph[max(0, span[0] - 90):span[0]] if span else ""
             alias = _abbrev_alias(after)
             # "the \emph{vertex prime} $\mathfrak p_i$": a term immediately followed by its symbol
-            term_symbol = re.match(r"^\s*\u27e6(m\d+)\u27e7", after)
+            term_symbol = re.match(r"^\s*[\u27e6\u27ea](m\d+)[\u27e7\u27eb]", after)
             if is_def_block:
                 source, conf = "paper_definition", "high"
                 definition_text = block.text
@@ -138,7 +138,7 @@ def extract_terms(doc: Document) -> list[TermEntry]:
                         end = e
                         if i + 1 < len(sents) and re.match(r"^\s*(That is|Here|Equivalently|In other words|Explicitly)\b", block.text_ph[sents[i + 1][0]:sents[i + 1][1]]):
                             end = sents[i + 1][1]
-                        definition_text = PH_RE.sub(lambda m: "$" + doc.math[m.group(1)].tex + "$" if m.group(1) in doc.math else "", block.text_ph[s:end]).strip()
+                        definition_text = PH_ANY_RE.sub(lambda m: "$" + doc.math[m.group(1)].tex + "$" if m.group(1) in doc.math else "", block.text_ph[s:end]).strip()
                         break
             if (key, block.id) in seen:
                 continue
@@ -160,7 +160,7 @@ def term_symbol_links(doc: Document) -> list[tuple[str, str, str, str]]:
             if span is None:
                 continue
             after = block.text_ph[span[1]:span[1] + 20]
-            m = re.match(r"^\s*\u27e6(m\d+)\u27e7", after)
+            m = re.match(r"^\s*[\u27e6\u27ea](m\d+)[\u27e7\u27eb]", after)
             before = block.text_ph[max(0, span[0] - 12):span[0]]
             if m and re.search(r"\b(?:the|a|an)\s*$", before, re.I):
                 out.append((block.id, m.group(1), phrase, block.text))

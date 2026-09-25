@@ -53,6 +53,7 @@ class Preamble:
     equation_reset: Optional[str] = None
     bib_files: list[str] = field(default_factory=list)
     bib_style: Optional[str] = None
+    biblatex_style: Optional[str] = None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -258,8 +259,13 @@ def _parse_into(pre: Preamble, tex: str) -> None:
         if m.group(1):
             pre.class_options = [o.strip() for o in m.group(1)[1:-1].split(",") if o.strip()]
 
-    for m in re.finditer(r"\\usepackage\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}", s):
-        pre.packages.extend(p.strip() for p in m.group(1).split(",") if p.strip())
+    for m in re.finditer(r"\\usepackage\s*(\[[^\]]*\])?\s*\{([^}]+)\}", s):
+        names = [p.strip() for p in m.group(2).split(",") if p.strip()]
+        pre.packages.extend(names)
+        if "biblatex" in names and m.group(1):
+            sm = re.search(r"(?:bibstyle|citestyle|style)\s*=\s*([\w\-]+)", m.group(1))
+            if sm:
+                pre.biblatex_style = sm.group(1)
 
     for m in re.finditer(r"\\(?:bibliography)\s*\{([^}]+)\}", s):
         pre.bib_files.extend(b.strip() for b in m.group(1).split(",") if b.strip())

@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import tarfile
+import tempfile
 import time
 import zipfile
 from pathlib import Path
@@ -165,7 +166,41 @@ class Library:
                 shutil.move(str(item), str(staging / item.name))
             inner.rmdir()
 
-    def add(self, inputs: list[Path], main_name: Optional[str] = None) -> Paper:
+    def find_by_arxiv(self, arxiv_id: str) -> Optional[Paper]:
+        for m in self.list():
+            if m.get("arxiv") == arxiv_id:
+                return self.get(m["id"])
+        return None
+
+    def add_from_arxiv(self, arxiv_id: str, fetch=None, role: str = "reference", cited_by: Optional[str] = None) -> Paper:
+        """Download an arXiv e-print and ingest it (or return the copy already in the library)."""
+        from ..refs.arxiv import arxiv_metadata, default_fetch, download_eprint, normalize_arxiv_id
+
+        fetch = fetch or default_fetch
+        aid = normalize_arxiv_id(arxiv_id)
+        if not aid:
+            raise ValueError(f"not an arXiv identifier: {arxiv_id!r}")
+        existing = self.find_by_arxiv(aid)
+        if existing is not None:
+            if cited_by:
+                cb = existing.meta.get("cited_by", [])
+                if cited_by not in cb:
+                    existing.save_meta(cited_by=cb + [cited_by])
+            return existing
+        tmp = Path(tempfile.mkdtemp(prefix="papassist-arxiv-"))
+        try:
+            download_eprint(aid, tmp, fetch=fetch)
+            meta = {"arxiv": aid, "role": role, "cited_by": [cited_by] if cited_by else []}
+            paper = self.add([tmp], extra_meta=meta, pid="a" + hashlib.sha1(("arxiv:" + aid).encode("utf-8")).hexdigest()[:10])
+            if not paper.meta.get("title") or paper.meta.get("title") in ("main", aid.replace("/", "_")):
+                info = arxiv_metadata(aid, fetch=fetch)
+                if info.get("title"):
+                    paper.save_meta(title=info["title"], authors=info.get("authors", paper.meta.get("authors", [])))
+            return paper
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def add(self, inputs: list[Path], main_name: Optional[str] = None, extra_meta: Optional[dict] = None, pid: Optional[str] = None) -> Paper:
         """Ingest sources (files, folders, archives) and return the Paper."""
         tmp = self.root / f".staging-{int(time.time() * 1000)}"
         try:
@@ -177,7 +212,7 @@ class Library:
             digest = hashlib.sha1()
             for p in sorted(source.rglob("*.tex")):
                 digest.update(p.read_bytes())
-            pid = "p" + digest.hexdigest()[:10]
+            pid = pid or ("p" + digest.hexdigest()[:10])
             doc = ingest_folder(source, pid, main=main)
             glossary = build_glossary(doc)
             folder = self.root / pid
@@ -190,7 +225,7 @@ class Library:
             paper.save_meta(
                 title=doc.title or main.stem, authors=doc.authors, main=str(main.relative_to(source)), added=time.time(),
                 blocks=len(doc.blocks), formulas=len(doc.math), symbols=len(glossary.symbols), terms=len(glossary.terms),
-                llm={"status": "not_run"},
+                llm={"status": "not_run"}, **{"role": "paper", **(extra_meta or {})},
             )
             self._papers[pid] = paper
             return paper

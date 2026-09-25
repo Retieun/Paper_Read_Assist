@@ -94,7 +94,8 @@ def render_snippet(text: str, id_prefix: str, matcher: Optional[TermMatcher] = N
         if m.group(1) is not None:
             out.append(render_math(m.group(1), True))
         else:
-            out.append(render_math(m.group(2), False))
+            # long inline formulas are shown displayed so they can scroll instead of breaking the card layout
+            out.append(render_math(m.group(2), len(m.group(2)) > 70))
         pos = m.end()
     chunk = text[pos:]
     out.append(matcher.wrap_text(chunk) if matcher else htmllib.escape(chunk, quote=False))

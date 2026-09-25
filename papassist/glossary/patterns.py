@@ -13,7 +13,7 @@ from typing import Optional
 from ..ingest.document import Block, Document, MathItem
 from ..render.mathunits import analyze_math, normalize_tex, tokenize
 from .appositive import appositive_candidates
-from .textutil import PH, PH_RE, split_sentences
+from .textutil import PH, PH_ANY_RE, PH_RE, split_sentences
 
 
 @dataclass
@@ -131,8 +131,10 @@ def symbol_shape(tex: str) -> Optional[SymbolShape]:
         first = split_top_commas(tm.group(1))[0]
         if not has_relation(first):
             head = symbol_shape(first)
-            if head is not None:
+            # only a structure-like first component names the tuple: (P, \le), (M, \varphi) but not (i, q) or (s, t)
+            if head is not None and re.match(r"^(?:[A-Z]|\\(?:mathbb|mathcal|mathfrak|mathbf|mathscr|boldsymbol|widetilde|widehat|overline)\{|\\(?:Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega)\b)", head.base if hasattr(head, "base") else head.key):
                 return SymbolShape(normalize_tex(tex), tex, [head.key, *head.extra_keys])
+            return SymbolShape(normalize_tex(tex), tex, [])
     if has_relation(tex):
         return None
     a = analyze_math(tex)
@@ -166,7 +168,7 @@ def symbol_shape(tex: str) -> Optional[SymbolShape]:
 
 ART = r"(?:a|an|the|any|some|its|our|their|this|that|each|every|one|two|three|finitely many|arbitrary)"
 PHS = rf"{PH}(?:\s*,\s*{PH})*(?:\s*,?\s*(?:and|or)\s+{PH})?"
-STOP = r"(?=\s*(?:[.;!?]|,\s*(?:and|or|where|with|whose|which|so that|such that|for|if|then|as|by|we|it|this|these|in particular|that is|i\.e\.|e\.g\.)\b|\s+(?:where|whose|which|so that|such that|indexed by|equipped with|together with|endowed with|whenever|if and only if|iff|provided|unless|for all|for each|for every|for some|defined|given by|obtained by|introduced|considered|studied)\b|\s+(?:and|or)\s+⟦|$))"
+STOP = r"(?=\s*(?:[.;!?\u27ea]|,\s*(?:and|or|where|with|whose|which|so that|such that|for|if|then|as|by|we|it|this|these|in particular|that is|i\.e\.|e\.g\.)\b|\s+(?:where|whose|which|so that|such that|indexed by|equipped with|together with|endowed with|whenever|if and only if|iff|provided|unless|for all|for each|for every|for some|defined|given by|obtained by|introduced|considered|studied)\b|\s+(?:and|or)\s+⟦|$))"
 PHRASE = rf"(?P<meaning>[^.;!?⟦]*?(?:{PH}[^.;!?⟦]*?){{0,3}})"
 
 TRIGGERS = r"(?:[Ll]et|[Ff]ix|[Cc]onsider|[Tt]ake|[Gg]iven|[Ss]uppose|[Aa]ssume|[Cc]hoose|[Pp]ick|[Ss]et|[Pp]ut|[Dd]efine|[Dd]enote|[Ww]rite|[Ll]et us write|[Ww]e write|[Ww]e set|[Ww]e put|[Ww]e define|[Ww]e let|[Ff]or|[Hh]ere)"
@@ -245,7 +247,7 @@ def _clean_meaning(s: str) -> str:
 
 def _sentence_text(doc: Document, block: Block, start: int, end: int) -> str:
     s = block.text_ph[start:end]
-    return PH_RE.sub(lambda m: "$" + doc.math[m.group(1)].tex + "$" if m.group(1) in doc.math else "", s).strip()
+    return PH_ANY_RE.sub(lambda m: "$" + doc.math[m.group(1)].tex + "$" if m.group(1) in doc.math else "", s).strip()
 
 
 def _placeholders(s: str) -> list[str]:
@@ -253,7 +255,7 @@ def _placeholders(s: str) -> list[str]:
 
 
 def _meaning_to_text(doc: Document, meaning_ph: str) -> str:
-    return _clean_meaning(PH_RE.sub(lambda m: "$" + doc.math[m.group(1)].tex + "$" if m.group(1) in doc.math else "", meaning_ph))
+    return _clean_meaning(PH_ANY_RE.sub(lambda m: "$" + doc.math[m.group(1)].tex + "$" if m.group(1) in doc.math else "", meaning_ph))
 
 
 def extract_symbols(doc: Document) -> list[SymbolEntry]:
@@ -340,8 +342,8 @@ def extract_symbols(doc: Document) -> list[SymbolEntry]:
                 seen_in_sentence.add(mid)
                 entries.append(SymbolEntry(key=shape.key, tex=tex_for_key, meaning=phrase + rel_note, source="paper_pattern", confidence="low",
                                            defined_at=block.id, scope=scope, quote=quote, keys=shape.extra_keys, pattern="appositive", math_id=mid))
-            # structural patterns: x \in X, f\colon X \to Y, X := ...
-            for m in PH_RE.finditer(sent):
+            # structural patterns: x \in X, f\colon X \to Y, X := ...  (inline and displayed formulas)
+            for m in PH_ANY_RE.finditer(sent):
                 mid = m.group(1)
                 item = doc.math.get(mid)
                 if item is None or mid in seen_in_sentence:

@@ -19,13 +19,14 @@ class TermMatcher:
         self.variants = variants
         forms = sorted(variants.keys(), key=len, reverse=True)
         if forms:
-            alt = "|".join(re.escape(f).replace(r"\ ", r"[\s\u00a0]+").replace(r"\-", r"[\-\s]") for f in forms)
+            alt = "|".join(re.escape(f).replace(r"\ ", r"[\s\u00a0\-\u2013\u2014]+").replace(r"\-", r"[\-\u2013\u2014\s]") for f in forms)
             self.re = re.compile(rf"(?<![\w\-])({alt})(?![\w\-])", re.I)
         else:
             self.re = None
 
     def lookup(self, surface: str) -> Optional[tuple[str, str]]:
-        s = re.sub(r"[\s\u00a0]+", " ", surface.lower()).strip()
+        s = re.sub(r"[\u2013\u2014]", "-", surface.lower())
+        s = re.sub(r"[\s\u00a0]+", " ", s).strip()
         hit = self.variants.get(s) or self.variants.get(s.replace(" ", "-")) or self.variants.get(s.replace("-", " "))
         return hit
 
