@@ -1,0 +1,87 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz-cd}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem*{convention}{Convention}
+
+\newcommand{\kk}{k}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\Vec}{\mathbf{Vec}}
+\newcommand{\Hloc}[2]{H^{#1}_{#2}}
+\DeclareMathOperator{\Dgm}{Dgm}
+\DeclareMathOperator{\link}{lk}
+
+\title{A Sample Paper on Persistence}
+\author{Ada Lovelace\thanks{Somewhere University} \and Emmy Noether}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study persistence modules over the poset $(\RR,\le)$ and prove a stability theorem (Theorem~\ref{thm:stab}).
+\end{abstract}
+
+\section{Preliminaries}\label{sec:prelim}
+
+Let $\kk$ be a field and $S=\kk[x_1,\dots,x_n]$ the polynomial ring with its standard grading.
+Let $\Delta$ be an abstract simplicial complex on the vertex set $[n]=\{1,\dots,n\}$.
+For $W\subseteq[n]$ write $\Delta_W=\{\sigma\in\Delta:\sigma\subseteq W\}$ for the induced subcomplex.
+The \emph{Stanley--Reisner ideal} is
+\begin{equation}\label{eq:sr}
+I_\Delta=\big(x_{i_1}\cdots x_{i_r}:\{i_1,\dots,i_r\}\notin\Delta\big)\subseteq S.
+\end{equation}
+The \emph{vertex prime} $\mathfrak p_i=(x_j:j\neq i)$ contains $I_\Delta$ by \eqref{eq:sr}.
+
+\input{sections/modules}
+
+\section{Stability}\label{sec:stab}
+
+\begin{theorem}[Stability]\label{thm:stab}
+Let $M$ and $N$ be pfd persistence modules. If $M$ and $N$ are $\varepsilon$-interleaved then
+$d_B(\Dgm(M),\Dgm(N))\le\varepsilon$.
+\end{theorem}
+
+\begin{proof}
+Fix a vertex $i$ and let $j\in\{1,\dots,n\}$ be an index. Since $M$ and $N$ are pfd, by Definition~\ref{def:pm} and \cite[Thm.~4.4]{bauer2015induced} the claim follows; see also \S\ref{sec:prelim}.
+\end{proof}
+
+\begin{lemma}\label{lem:cases}
+The number $\nu(c)$ satisfies
+\[
+\nu(c)=
+\begin{cases}
+1, & c=0,\\[2pt]
+0, & c\ne 0.
+\end{cases}
+\]
+\end{lemma}
+
+The following diagram commutes:
+\[
+\begin{tikzcd}
+A \arrow[r] \arrow[d] & B \arrow[d] \\
+C \arrow[r] & D
+\end{tikzcd}
+\]
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\draw (0,0) -- (1,0) -- (0.5,1) -- cycle;
+\end{tikzpicture}
+\caption{A triangle.}\label{fig:tri}
+\end{figure}
+
+\section*{Acknowledgements}
+Thanks to everyone.\footnote{Really everyone.}
+
+\bibliographystyle{plain}
+\bibliography{refs}
+\end{document}

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PapAssist</title>
+<link rel="stylesheet" href="/static/styles.css">
+<script>
+window.MathJax = {
+  tex: {
+    packages: {'[+]': ['html', 'mathtools', 'boldsymbol', 'ams', 'newcommand', 'configmacros', 'braket', 'cancel']},
+    inlineMath: [['\\(', '\\)']],
+    displayMath: [['\\[', '\\]']],
+    processEnvironments: true,
+    processEscapes: false,
+    tags: 'none',
+    macros: {
+      bm: ['\\boldsymbol{#1}', 1], textup: ['\\text{#1}', 1], textnormal: ['\\text{#1}', 1], textsc: ['\\text{#1}', 1],
+      mathds: ['\\mathbb{#1}', 1], varnothing: '\\emptyset', coloneqq: '\\mathrel{\\vcenter{:}}=', restr: ['\\big|_{#1}', 1],
+      qedhere: '', nonumber: '', notag: '', allowdisplaybreaks: '', intertext: ['\\text{#1}', 1]
+    },
+    formatError: function (jax, err) { return jax.formatError(err); }
+  },
+  chtml: { fontURL: '/static/vendor/mathjax/output/chtml/fonts/woff-v2', scale: 1.0 },
+  options: { enableMenu: false, ignoreHtmlClass: 'pa-nomath' },
+  startup: { typeset: false }
+};
+</script>
+<script src="/static/vendor/mathjax/tex-chtml-full.js" id="MathJax-script" async></script>
+</head>
+<body>
+<header id="topbar">
+  <div class="brand" title="PapAssist">Pap<span>Assist</span></div>
+  <div id="paper-title" class="paper-title"></div>
+  <div class="spacer"></div>
+  <span id="llm-pill" class="pill pill-muted" title="LLM status">LLM: …</span>
+  <button id="btn-library" class="btn" title="Open a paper from the library">Library</button>
+  <button id="btn-open" class="btn btn-primary" title="Open .tex / folder archive">Open paper…</button>
+  <input id="file-input" type="file" multiple accept=".tex,.bib,.bbl,.sty,.cls,.zip,.gz,.tgz,.tar" hidden>
+</header>
+
+<div id="layout">
+  <nav id="toc" class="toc" aria-label="Table of contents"></nav>
+  <main id="reader-wrap">
+    <div id="dropzone" class="dropzone">
+      <div class="dz-inner">
+        <h1>Drop a paper here</h1>
+        <p>A <code>.tex</code> file (with its <code>.bib</code>), a folder as a <code>.zip</code>, or an arXiv source archive (<code>.tar.gz</code>).</p>
+        <p>Or type a path on this computer:</p>
+        <form id="path-form"><input id="path-input" type="text" placeholder="C:\papers\mypaper\main.tex   or   /home/me/paper/" spellcheck="false"><button class="btn btn-primary" type="submit">Open</button></form>
+        <div id="library-list" class="library-list"></div>
+        <p class="dz-status" id="dz-status"></p>
+      </div>
+    </div>
+    <article id="reader" class="reader pa-nomath-outside" hidden></article>
+  </main>
+  <aside id="panel" class="panel">
+    <div class="panel-tabs">
+      <button class="tab active" data-tab="cards">Explain</button>
+      <button class="tab" data-tab="pins">Pinned <span id="pin-count" class="count">0</span></button>
+      <button class="tab" data-tab="glossary">Glossary</button>
+    </div>
+    <div id="tab-cards" class="tab-body">
+      <div id="crumbs" class="crumbs"></div>
+      <div id="card-host" class="card-host">
+        <div class="card card-empty">
+          <p><strong>Hover</strong> a symbol in a formula or an emphasised term in the text to see what it means in this paper.</p>
+          <p><strong>Click</strong> to keep the card; click inside a card to follow a definition down.</p>
+          <p class="legend">Sources: <span class="src src-paper">This paper</span> <span class="src src-dictionary">Standard notation</span> <span class="src src-llm">LLM, from this paper's text</span></p>
+        </div>
+      </div>
+    </div>
+    <div id="tab-pins" class="tab-body" hidden>
+      <div class="pins-toolbar"><button id="btn-export" class="btn">Export as Markdown</button><button id="btn-clear-pins" class="btn">Clear</button></div>
+      <div id="pins-host"></div>
+    </div>
+    <div id="tab-glossary" class="tab-body" hidden>
+      <input id="glossary-filter" type="search" placeholder="filter symbols and terms…">
+      <div id="glossary-host"></div>
+    </div>
+  </aside>
+</div>
+<div id="toast" class="toast" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

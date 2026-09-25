@@ -1,0 +1,23 @@
+\section{Persistence modules}\label{sec:modules}
+
+\begin{definition}[Persistence module]\label{def:pm}
+Let $(P,\le)$ be a poset. A \emph{$P$-indexed persistence module} is a functor $M\colon P\to\Vec$.
+We write $M_t$ for $M(t)$ and $\varphi_M(s,t)\colon M_s\to M_t$ for the structure maps, following~\cite{chazal2016structure}.
+Such an $M$ is \emph{pointwise finite-dimensional} \textup{(}pfd\textup{)} if every $M_t$ is finite-dimensional.
+\end{definition}
+
+\begin{definition}[Interleaving distance]\label{def:interleave}
+For $\delta\ge 0$ define
+\begin{align}
+d_I(M,N) &:= \inf\{\delta\ge0: M,N \text{ are } \delta\text{-interleaved}\},\label{eq:di}\\
+\rho(M) &= \sup_t \dim M_t. \notag
+\end{align}
+\end{definition}
+
+\begin{convention}
+Throughout, $\Hloc{q}{\mathfrak m}(-)$ denotes local cohomology with support in $\mathfrak m$.
+\end{convention}
+
+\begin{example}
+Let $\Delta$ be the path $1-2-3$. Then $\link_\Delta(2)=\{\varnothing,\{1\},\{3\}\}$.
+\end{example}

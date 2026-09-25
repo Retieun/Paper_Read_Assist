@@ -1,0 +1,9 @@
+fastapi>=0.115
+uvicorn>=0.30
+python-multipart>=0.0.9
+pypandoc_binary>=1.13
+bibtexparser>=2.0.0b7
+anthropic>=1.0
+python-dotenv>=1.0
+pydantic>=2.0
+pylatexenc>=2.10
