@@ -384,7 +384,7 @@
     await typeset([host, crumbs]);
   }
   function crumbHtml(c) {
-    if (c.kind === 'symbol' || c.kind === 'range') return `<span class="pa-math">\\(${esc(c.tex.length > 40 ? c.tex.slice(0, 40) + '\\dots' : c.tex)}\\)</span>`;
+    if (c.kind === 'symbol' || c.kind === 'range') { const t = c.base && c.tex.length > 24 ? c.base : (c.tex.length > 24 ? c.tex.slice(0, 24) + '\\dots' : c.tex); return `<span class="pa-math">\\(${esc(t)}\\)</span>`; }
     return esc(cardTitleText(c)).slice(0, 28);
   }
   function mapUnits(u) { const out = {}; for (const [k, v] of Object.entries(u)) out[k] = [v[0], v[1], v[2], v[3] || v[0], v[4] || null]; return out; }

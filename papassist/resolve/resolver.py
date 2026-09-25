@@ -287,18 +287,15 @@ class Resolver:
             return {"kind": "range", "status": "not_found", "units": {}, "items": [], "entries": []}
         start, end = min(a["start"], b["start"]), max(a["end"], b["end"])
         src = item.src or item.tex
+        start, end = _balanced_span(src, start, end)
         sub = src[start:end]
-        # extend to balanced braces / parentheses
-        while sub.count("{") > sub.count("}") and end < len(src):
-            end += 1
-            sub = src[start:end]
-        while sub.count("(") > sub.count(")") and end < len(src):
-            end += 1
-            sub = src[start:end]
-        while sub.count("}") > sub.count("{") and start > 0:
-            start -= 1
-            sub = src[start:end]
+        if sub is None or not sub.strip():
+            sub = src
         sub = re.sub(r"\\tag\{[^}]*\}", "", sub).strip()
+        if "&" in sub or "\\\\" in sub:
+            # the span crosses table rows/columns: explain the whole formula instead
+            sub = re.sub(r"\\tag\{[^}]*\}", "", src).strip()
+            start, end = 0, len(src)
         key = normalize_tex(sub)
         card = self.resolve_by_key(key, sub, None, bid)
         inside = [u for u in item.units if u["start"] >= start and u["end"] <= end and (u.get("parent") is None or str(u["parent"]) not in by_id or by_id[str(u["parent"])]["start"] < start or by_id[str(u["parent"])]["end"] > end)]
@@ -396,6 +393,48 @@ class Resolver:
             else:
                 entries.append({"key": k, "short": k, "title": "(not found in the bibliography)"})
         return {"kind": "cite", "status": "found" if entries else "not_found", "entries": entries, "units": {}}
+
+
+def _balanced_span(src: str, start: int, end: int) -> tuple[int, int]:
+    """Grow [start, end) until braces, \\left/\\right pairs and environments are balanced.
+
+    A selection made by clicking two symbols can start inside a group; MathJax
+    would then fail on the fragment. We widen to the smallest balanced span.
+    """
+    tokens = list(re.finditer(r"\\(?:left|right|begin\{[^}]*\}|end\{[^}]*\}|[A-Za-z]+|.)|[{}]", src))
+
+    def depth_change(m):
+        t = m.group(0)
+        if t == "{" or t == "\\left" or t.startswith("\\begin"):
+            return 1
+        if t == "}" or t == "\\right" or t.startswith("\\end"):
+            return -1
+        return 0
+
+    for _ in range(40):
+        depth = 0
+        min_depth = 0
+        for m in tokens:
+            if m.start() < start or m.end() > end:
+                continue
+            depth += depth_change(m)
+            min_depth = min(min_depth, depth)
+        if depth == 0 and min_depth == 0:
+            return start, end
+        if min_depth < 0:
+            # an opener is missing before the span: move start back to the previous opener
+            prev = [m for m in tokens if m.end() <= start and depth_change(m) == 1]
+            if not prev:
+                return 0, len(src)
+            start = prev[-1].start()
+            continue
+        if depth > 0:
+            nxt = [m for m in tokens if m.start() >= end and depth_change(m) == -1]
+            if not nxt:
+                return 0, len(src)
+            end = nxt[0].end()
+            continue
+    return 0, len(src)
 
 
 def _esc(s: str) -> str:

@@ -77,6 +77,8 @@ This is the Phase 1 prototype plus the cited-paper part of Phase 2 from [docs/PL
   `.bib`, TikZ drawings shown as collapsible source.
 * Symbol-level hover inside formulas (identifier units with their scripts), operators via the
   notation dictionary, terms in the text, citations and cross-references.
+* MathJax 4 with automatic line breaking, so long formulas wrap to the width of the reading
+  column or the side panel instead of being cut off; everything is bundled for offline use.
 * A per-paper glossary from the paper's own sentences and definition environments, with local
   scopes for symbols bound inside a statement or proof.
 * Optional LLM enrichment and on-demand explanations grounded in the paper's text.

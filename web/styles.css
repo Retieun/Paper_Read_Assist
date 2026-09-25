@@ -80,13 +80,16 @@ h2.pa-heading { font-size: 22px; } h3.pa-heading { font-size: 18px; } h4.pa-head
 .pa-proof { padding-left: 14px; }
 .pa-proof-head em { font-style: italic; }
 .pa-math.pa-display { display: block; margin: 6px 0; }
-/* Displayed formulas: shrink to content and centre; when wider than the column, scroll instead of spilling out or being cut on the left. */
-mjx-container[jax="CHTML"][display="true"] { display: block !important; width: fit-content; max-width: 100%; margin: 0.4em auto !important; overflow-x: auto; overflow-y: hidden; padding: 3px 2px; box-sizing: border-box; }
-.card mjx-container[jax="CHTML"][display="true"] { margin: 6px 0 !important; }
-.card mjx-container[jax="CHTML"]:not([display="true"]) { max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: middle; display: inline-block; }
+/* Displayed formulas: MathJax 4 breaks long lines to the available width. The rare formula that
+   cannot break (a wide matrix) scrolls, aligned to the left so nothing is hidden. */
+mjx-container[jax="CHTML"][display="true"] { display: flex !important; justify-content: safe center; max-width: 100%; margin: 0.5em 0 !important; overflow-x: auto; overflow-y: hidden; padding: 3px 2px; box-sizing: border-box; }
+mjx-container[jax="CHTML"][display="true"] > mjx-math { margin-left: 0 !important; margin-right: 0 !important; max-width: 100%; }
+mjx-container[jax="CHTML"]:not([display="true"]) { max-width: 100%; }
+.card mjx-container[jax="CHTML"]:not([display="true"]) { max-width: 100%; }
 .card .card-title mjx-container { max-width: 100%; overflow-x: auto; overflow-y: hidden; display: inline-block; vertical-align: middle; }
 .card .defblock, .card .meaning, .card .formula-list { min-width: 0; overflow-wrap: anywhere; }
 .crumbs mjx-container { font-size: 90%; }
+mjx-merror, mjx-merror mjx-mtext, mjx-merror mjx-utext { white-space: normal !important; word-break: break-all; max-width: 100%; display: inline-block; }
 .pa-cite { color: #4d5f8a; cursor: help; }
 .pa-cite-num { color: #4d5f8a; text-decoration: none; }
 .pa-cite-num:hover { text-decoration: underline; }
@@ -127,7 +130,8 @@ mjx-container { cursor: default; }
 
 /* cards */
 .crumbs { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; margin-bottom: 8px; min-height: 18px; }
-.crumbs button { border: 0; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.crumbs button { border: 0; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 2px 8px; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumbs button mjx-container { max-width: 100%; overflow: hidden; vertical-align: middle; }
 .crumbs button.current { background: #eee; color: var(--fg); cursor: default; }
 .card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: #fff; font-size: 14.5px; line-height: 1.5; }
 .card.preview { border-style: dashed; }
@@ -176,9 +180,9 @@ details.quote .q { font-family: var(--serif); padding: 4px 8px; border-left: 2px
 #glossary-filter { width: 100%; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; }
 .gl-item { padding: 5px 4px; border-bottom: 1px solid #f0efe9; font-size: 13.5px; cursor: pointer; display: flex; gap: 8px; }
 .gl-item:hover { background: #f7f9fe; }
-.gl-item .gk { min-width: 80px; font-family: var(--serif); }
-.gl-item .gm { color: #444; flex: 1; }
+.gl-item .gk { min-width: 60px; max-width: 45%; font-family: var(--serif); overflow-x: auto; overflow-y: hidden; }
+.gl-item .gm { color: #444; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 50; }
 .toast[hidden] { display: none; }
 .progress { position: sticky; top: 0; background: #fff8ee; color: #8a5a10; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid #f4d3a3; z-index: 5; }
-@media (max-width: 1100px) { #layout { grid-template-columns: 0 1fr 360px; } .toc { display: none; } }
+@media (max-width: 1100px) { #layout { grid-template-columns: 1fr var(--panel-w, 360px); } .toc { display: none; } .reader { padding: 20px 18px 60px; } }
