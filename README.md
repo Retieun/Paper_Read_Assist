@@ -55,23 +55,6 @@ sourced definition, and *Ask the LLM what this paper says about it* for anything
 deterministic pass could not resolve. Both answers are labelled and cached. Run with
 `--no-llm` to disable all API calls, or set `PAPASSIST_MODEL` to use another Claude model.
 
-## What works today, and what does not yet
-
-This is the Phase 1 prototype from [docs/PLAN.md](docs/PLAN.md):
-
-* LaTeX ingest through pandoc (bundled), with theorem and equation numbering that follows the
-  paper's `\newtheorem` declarations, resolved `\ref`/`\eqref`, citations rendered from the
-  `.bib`, TikZ drawings shown as collapsible source.
-* Symbol-level hover inside formulas (identifier units with their scripts), operators via the
-  notation dictionary, terms in the text, citations and cross-references.
-* A per-paper glossary from the paper's own sentences and definition environments, with local
-  scopes for symbols bound inside a statement or proof.
-* Optional LLM enrichment and on-demand explanations grounded in the paper's text.
-
-Not yet built (Phase 2 and 3 in the plan): fetching cited papers from arXiv to look up
-definitions the paper leaves to its references, arXiv-id input, web search, the prerequisite
-graph, PDF input.
-
 ## Development
 
 ```
