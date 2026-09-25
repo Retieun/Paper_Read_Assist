@@ -29,7 +29,45 @@ app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 library = Library()
 _resolvers: dict[str, Resolver] = {}
 _jobs: dict[str, dict] = {}
+_tasks: dict[str, dict] = {}
 _lock = threading.Lock()
+FETCH = None  # tests inject a fake network here
+
+
+def _fetch():
+    if FETCH is not None:
+        return FETCH
+    import os
+
+    fake_dir = os.environ.get("PAPASSIST_FAKE_ARXIV")
+    if fake_dir:  # testing aid: serve arXiv requests from a folder
+        from .refs.arxiv import directory_fetch
+
+        return directory_fetch(Path(fake_dir))
+    from .refs.arxiv import default_fetch
+
+    return default_fetch
+
+
+def run_task(name: str, fn) -> str:
+    import uuid
+
+    job_id = uuid.uuid4().hex[:10]
+    with _lock:
+        _tasks[job_id] = {"id": job_id, "name": name, "status": "running", "message": "", "result": None}
+
+    def go() -> None:
+        try:
+            result = fn(lambda msg: _tasks[job_id].__setitem__("message", msg))
+            with _lock:
+                _tasks[job_id].update({"status": "done", "result": result})
+        except Exception as e:
+            traceback.print_exc()
+            with _lock:
+                _tasks[job_id].update({"status": "error", "message": str(e)[:600]})
+
+    threading.Thread(target=go, daemon=True).start()
+    return job_id
 
 
 def _llm_client():
@@ -214,10 +252,13 @@ def resolve(
     base: Optional[str] = None,
     term: Optional[str] = None,
     mid: Optional[str] = None,
+    uid1: Optional[str] = None,
+    uid2: Optional[str] = None,
     op: Optional[str] = None,
     label: Optional[str] = None,
     cite: Optional[str] = None,
     block: Optional[str] = Query(default=None),
+    retag: bool = False,
 ) -> dict:
     r = get_resolver(pid)
     if uid is not None and uid in r._unit_lookup:
@@ -228,6 +269,8 @@ def resolve(
         card = {"kind": "symbol", "status": "not_found", "tex": tex or "", "key": key or "", "entries": [], "units": {}}
     elif term is not None:
         card = r.resolve_term(term, block)
+    elif mid is not None and uid1 and uid2:
+        card = r.resolve_range(mid, uid1, uid2, block)
     elif mid is not None:
         card = r.resolve_formula(mid, block)
     elif op is not None:
@@ -239,7 +282,13 @@ def resolve(
     else:
         raise HTTPException(400, "nothing to resolve")
     card["block"] = block
-    return card
+    if retag:
+        from .refs.lookup import retag_card
+
+        return retag_card(card, pid)
+    from .refs.service import attach_reference_info
+
+    return attach_reference_info(card, library, get_paper(pid), get_resolver)
 
 
 @app.get("/api/papers/{pid}/block/{bid}")
@@ -260,6 +309,102 @@ def source_file(pid: str, path: str):
     if not str(p).startswith(str((paper.folder / "source").resolve())) or not p.exists():
         raise HTTPException(404)
     return FileResponse(str(p))
+
+
+# ---------------------------------------------------------------------------
+# cited papers
+# ---------------------------------------------------------------------------
+
+@app.get("/api/jobs/{job_id}")
+def job_status(job_id: str) -> dict:
+    job = _tasks.get(job_id)
+    if job is None:
+        raise HTTPException(404, "unknown job")
+    return job
+
+
+@app.get("/api/papers/{pid}/references")
+def references(pid: str) -> dict:
+    from .refs.service import references_status
+
+    return {"references": references_status(library, get_paper(pid))}
+
+
+@app.post("/api/papers/{pid}/references/{key}/fetch")
+def fetch_reference(pid: str, key: str) -> dict:
+    paper = get_paper(pid)
+    entry = paper.doc.bibliography.get(key)
+    if entry is None:
+        raise HTTPException(404, f"no bibliography entry {key}")
+
+    def work(progress) -> dict:
+        from .ingest.bib import BibEntry
+        from .refs.arxiv import NoSourceError, resolve_arxiv_id
+
+        e = BibEntry(**{k: v for k, v in entry.items() if k != "short"})
+        ref_ids = paper.meta.get("ref_ids", {})
+        aid = ref_ids.get(key, {}).get("arxiv")
+        if not aid:
+            progress("Looking the reference up on arXiv…")
+            aid, how = resolve_arxiv_id(e, fetch=_fetch(), allow_search=True)
+            ref_ids[key] = {"arxiv": aid, "method": how}
+            paper.save_meta(ref_ids=ref_ids)
+        if not aid:
+            raise RuntimeError("Could not find this reference on arXiv (no identifier in the bibliography and no matching title).")
+        progress(f"Downloading arXiv:{aid} and converting it…")
+        try:
+            other = library.add_from_arxiv(aid, fetch=_fetch(), role="reference", cited_by=pid)
+        except NoSourceError as ex:
+            raise RuntimeError(str(ex)) from ex
+        return {"paper_id": other.id, "arxiv": aid, "title": other.meta.get("title")}
+
+    return {"job": run_task(f"fetch {key}", work)}
+
+
+@app.get("/api/papers/{pid}/lookup")
+def lookup(pid: str, term: Optional[str] = None, key: Optional[str] = None, tex: Optional[str] = None, ref: Optional[str] = None) -> dict:
+    from .refs.service import lookup_in_library
+
+    paper = get_paper(pid)
+    if term:
+        results = lookup_in_library(library, paper, get_resolver, term=term, ref_key=ref)
+    elif key:
+        keys = [key]
+        try:
+            from .render.mathunits import analyze_math
+
+            a = analyze_math(tex or key)
+            tops = [u for u in a.units if u.parent is None]
+            if tops:
+                keys = list(dict.fromkeys([key, *tops[0].keys]))
+        except Exception:
+            pass
+        results = lookup_in_library(library, paper, get_resolver, keys=keys, ref_key=ref)
+    else:
+        raise HTTPException(400, "term or key required")
+    return {"results": results}
+
+
+class ArxivIn(BaseModel):
+    id: str
+
+
+@app.post("/api/papers/arxiv")
+def open_arxiv(body: ArxivIn) -> dict:
+    from .refs.arxiv import normalize_arxiv_id
+
+    aid = normalize_arxiv_id(body.id)
+    if not aid:
+        raise HTTPException(400, "not an arXiv identifier")
+
+    def work(progress) -> dict:
+        progress(f"Downloading arXiv:{aid}…")
+        paper = library.add_from_arxiv(aid, fetch=_fetch(), role="paper")
+        if settings.auto_enrich and settings.llm_enabled and settings.api_key_present:
+            start_enrichment(paper.id)
+        return {"paper_id": paper.id, "title": paper.meta.get("title")}
+
+    return {"job": run_task(f"arxiv {aid}", work)}
 
 
 # ---------------------------------------------------------------------------

@@ -228,7 +228,8 @@ class Resolver:
     @staticmethod
     def _wild_match(pattern: str, key: str) -> bool:
         rx = "^" + ".*?".join(re.escape(part) for part in pattern.split("*")) + "$"
-        return re.match(rx, key) is not None
+        bare = key.replace("'", "").replace("\\prime", "")
+        return re.match(rx, key) is not None or re.match(rx, bare) is not None
 
     def _tex_for_key(self, key: str, hits: list) -> str:
         for bid, mid, uid in hits[:1]:
@@ -248,22 +249,61 @@ class Resolver:
         return {"kind": "operator", "char": char, "tex": d.get("tex", ""), "name": d.get("name", ""), "status": "dictionary",
                 "meaning_html": mh, "meaning_text": d.get("meaning", ""), "units": units}
 
-    def resolve_formula(self, mid: str, bid: Optional[str]) -> dict:
-        item = self.doc.math.get(mid)
-        if item is None:
-            return {"kind": "formula", "status": "not_found", "units": {}, "items": []}
+    def _unit_rows(self, item, units: list[dict], bid: Optional[str], mid: str) -> list[dict]:
         rows = []
         seen = set()
-        for u in item.units:
-            if u.get("parent") is not None or u["key"] in seen:
+        for u in units:
+            if u["key"] in seen:
                 continue
             seen.add(u["key"])
             card = self.resolve_symbol(u["key"], list(u.get("keys", [])), u["tex"], bid, mid=mid, base=u.get("base"))
             best = card["entries"][0]["meaning_text"] if card["entries"] else (card["dictionary"]["meaning_text"] if card.get("dictionary") else "")
-            rows.append({"uid": str(u["id"]), "tex": u["tex"], "key": u["key"], "status": card["status"], "meaning": best[:160]})
-        html_tex = item.tagged if item.bare else ("\\[" + item.tagged + "\\]" if item.display else "\\(" + item.tagged + "\\)")
+            mh, _ = self._snippet(best[:200], "row" + u["key"] + best[:40]) if best else ("", {})
+            rows.append({"uid": str(u["id"]), "tex": u["tex"], "key": u["key"], "status": card["status"], "meaning": best[:200], "meaning_html": mh})
+        return rows
+
+    @staticmethod
+    def _math_html(item) -> str:
+        if item.bare or item.display:
+            return f'<span class="pa-math pa-display">{_esc(item.tagged)}</span>'
+        return f'<span class="pa-math">\\({_esc(item.tagged)}\\)</span>'
+
+    def resolve_formula(self, mid: str, bid: Optional[str]) -> dict:
+        item = self.doc.math.get(mid)
+        if item is None:
+            return {"kind": "formula", "status": "not_found", "units": {}, "items": []}
+        rows = self._unit_rows(item, [u for u in item.units if u.get("parent") is None], bid, mid)
         return {"kind": "formula", "mid": mid, "status": "found" if rows else "not_found", "items": rows,
-                "formula_html": f'<span class="pa-math{" pa-display" if item.display else ""}">{_esc(html_tex)}</span>', "units": {}}
+                "formula_html": self._math_html(item), "units": {}}
+
+    def resolve_range(self, mid: str, uid1: str, uid2: str, bid: Optional[str]) -> dict:
+        """Shift-click selection: the sub-expression spanned by two units of one formula."""
+        item = self.doc.math.get(mid)
+        if item is None:
+            return {"kind": "range", "status": "not_found", "units": {}, "items": [], "entries": []}
+        by_id = {str(u["id"]): u for u in item.units}
+        a, b = by_id.get(uid1), by_id.get(uid2)
+        if a is None or b is None:
+            return {"kind": "range", "status": "not_found", "units": {}, "items": [], "entries": []}
+        start, end = min(a["start"], b["start"]), max(a["end"], b["end"])
+        src = item.src or item.tex
+        sub = src[start:end]
+        # extend to balanced braces / parentheses
+        while sub.count("{") > sub.count("}") and end < len(src):
+            end += 1
+            sub = src[start:end]
+        while sub.count("(") > sub.count(")") and end < len(src):
+            end += 1
+            sub = src[start:end]
+        while sub.count("}") > sub.count("{") and start > 0:
+            start -= 1
+            sub = src[start:end]
+        sub = re.sub(r"\\tag\{[^}]*\}", "", sub).strip()
+        key = normalize_tex(sub)
+        card = self.resolve_by_key(key, sub, None, bid)
+        inside = [u for u in item.units if u["start"] >= start and u["end"] <= end and (u.get("parent") is None or str(u["parent"]) not in by_id or by_id[str(u["parent"])]["start"] < start or by_id[str(u["parent"])]["end"] > end)]
+        card.update({"kind": "range", "mid": mid, "items": self._unit_rows(item, inside, bid, mid)})
+        return card
 
     # -- terms -----------------------------------------------------------------
     def resolve_term(self, term: str, bid: Optional[str]) -> dict:
@@ -303,7 +343,7 @@ class Resolver:
 
     def _term_mentions(self, key: str, hits: list[dict]) -> dict:
         forms = {key, *[a for t in hits for a in t.get("aliases", [])]}
-        pat = re.compile(r"(?<![\w\-])(" + "|".join(re.escape(f).replace(r"\ ", r"[\s\-]+") for f in sorted(forms, key=len, reverse=True) if f) + r")s?(?![\w\-])", re.I)
+        pat = re.compile(r"(?<![\w\-])(" + "|".join(re.escape(f).replace(r"\ ", r"[\s\-\u2013\u2014]+") for f in sorted(forms, key=len, reverse=True) if f) + r")s?(?![\w\-])", re.I)
         blocks = []
         count = 0
         for b in self.doc.blocks:

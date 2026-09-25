@@ -9,6 +9,7 @@ Every answer carries its source:
 | Label | Meaning |
 |---|---|
 | **This paper** | quoted from the paper itself, with a jump link to the place (explicit statements such as "Let $k$ be a field", "we write $\Delta_W$ for …", ":=", definition environments, inline definitions) |
+| **Cited paper** | quoted from a paper this paper cites, after its LaTeX source was fetched from arXiv and indexed the same way; a citation pointer such as "[8, Definition 2.1]" is followed directly |
 | **Standard notation** | from a built-in dictionary of common notation; used only when the paper does not say otherwise |
 | **Inferred from this paper's text (LLM)** | optional: Claude reads the paper's own text and reports what it establishes, with the supporting quote. It never answers from outside knowledge; if the paper does not determine a meaning, it says so |
 
@@ -37,8 +38,20 @@ The paper is converted (a few seconds), typeset with MathJax, and the glossary i
   the right shows a preview card. All other occurrences of the symbol are highlighted.
 * **Click** to keep the card. Cards are themselves hoverable and clickable, so a definition
   that uses another notion can be followed down; breadcrumbs take you back.
+* **Shift-click** a second symbol in the same formula to explain the whole span between them
+  (MathJax output has no selectable text, so this replaces drag-selection).
+* Citations render as in the PDF (`[12]`, or `[SW26]` for alpha styles) and jump to a
+  References section at the end; the full reference shows on hover.
+* **Cited papers.** When a term or symbol is not defined in the paper, the card offers the
+  references cited next to it: *fetch* downloads that paper's LaTeX source from arXiv (by the
+  identifier in the bibliography, or by a title search) and indexes it in your library, and
+  *search* looks the term up there, following citation pointers like "Thm. 4.4". Hits appear
+  on the card under **In cited papers** with the cited paper's own text, which is hoverable in
+  turn. The References section has the same *index* buttons per entry, and the front page can
+  open any arXiv paper by id.
 * **Pin** cards you want to keep; the Pinned tab exports them as a Markdown cheat sheet.
-* The **Glossary** tab lists every symbol and term the paper explains.
+* The **Glossary** tab lists every symbol and term the paper explains. Drag the panel's left
+  edge to resize it.
 
 ### Optional: the LLM
 
