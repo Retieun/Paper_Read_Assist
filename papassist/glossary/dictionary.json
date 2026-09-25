@@ -1,0 +1,742 @@
+{
+  "_comment": "Standard mathematical notation. Entries rank below anything the paper itself says. Keys are canonical TeX (see render/mathunits.normalize) or a single Unicode character for operators recovered from MathJax.",
+  "symbols": {
+    "\\mathbb{R}": {
+      "name": "the real numbers",
+      "meaning": "The field of real numbers.",
+      "category": "set"
+    },
+    "\\mathbb{Z}": {
+      "name": "the integers",
+      "meaning": "The ring of integers.",
+      "category": "set"
+    },
+    "\\mathbb{N}": {
+      "name": "the natural numbers",
+      "meaning": "The natural numbers (whether 0 is included depends on the author).",
+      "category": "set"
+    },
+    "\\mathbb{Q}": {
+      "name": "the rational numbers",
+      "meaning": "The field of rational numbers.",
+      "category": "set"
+    },
+    "\\mathbb{C}": {
+      "name": "the complex numbers",
+      "meaning": "The field of complex numbers.",
+      "category": "set"
+    },
+    "\\mathbb{F}": {
+      "name": "a field",
+      "meaning": "A field, often a finite field or a field of coefficients.",
+      "category": "set"
+    },
+    "\\mathbb{F}_{p}": {
+      "name": "the field with p elements",
+      "meaning": "The finite field with $p$ elements.",
+      "category": "set"
+    },
+    "\\mathbb{Z}^{n}": {
+      "name": "integer lattice",
+      "meaning": "The lattice of integer vectors of length $n$; often used as a grading group (multidegrees).",
+      "category": "set"
+    },
+    "\\mathbb{N}^{n}": {
+      "name": "non-negative integer vectors",
+      "meaning": "Vectors of length $n$ with non-negative integer entries; often the grading group of a polynomial ring.",
+      "category": "set"
+    },
+    "\\mathbb{R}^{\\operatorname{op}}": {
+      "name": "reals with reversed order",
+      "meaning": "The poset of real numbers with the opposite order: $s \\le t$ in $\\mathbb{R}^{\\mathrm{op}}$ means $t \\le s$ in $\\mathbb{R}$. Persistence modules indexed by it have structure maps running from larger to smaller parameters.",
+      "category": "poset"
+    },
+    "\\mathfrak{m}": {
+      "name": "maximal ideal",
+      "meaning": "A maximal ideal; in a polynomial ring $k[x_1,\\dots,x_n]$ usually the homogeneous maximal ideal $(x_1,\\dots,x_n)$.",
+      "category": "ideal"
+    },
+    "\\mathfrak{p}": {
+      "name": "prime ideal",
+      "meaning": "A prime ideal.",
+      "category": "ideal"
+    },
+    "\\mathfrak{q}": {
+      "name": "prime ideal",
+      "meaning": "A (usually prime) ideal.",
+      "category": "ideal"
+    },
+    "\\mathfrak{a}": {
+      "name": "an ideal",
+      "meaning": "An ideal.",
+      "category": "ideal"
+    },
+    "\\varepsilon": {
+      "name": "epsilon",
+      "meaning": "Usually a small positive real number, or an interleaving/approximation parameter.",
+      "category": "number"
+    },
+    "\\epsilon": {
+      "name": "epsilon",
+      "meaning": "Usually a small positive real number.",
+      "category": "number"
+    },
+    "\\delta": {
+      "name": "delta",
+      "meaning": "Usually a small positive real number or a tolerance parameter.",
+      "category": "number"
+    },
+    "\\infty": {
+      "name": "infinity",
+      "meaning": "Infinity.",
+      "category": "symbol"
+    },
+    "\\partial": {
+      "name": "boundary / partial derivative",
+      "meaning": "The boundary operator (in homology) or a partial derivative (in analysis).",
+      "category": "operator"
+    },
+    "\\emptyset": {
+      "name": "empty set",
+      "meaning": "The empty set.",
+      "category": "set"
+    },
+    "\\varnothing": {
+      "name": "empty set",
+      "meaning": "The empty set (also the empty face of a simplicial complex).",
+      "category": "set"
+    },
+    "\\ell": {
+      "name": "ell",
+      "meaning": "An integer index or a length.",
+      "category": "number"
+    },
+    "\\operatorname{Hom}": {
+      "name": "Hom",
+      "meaning": "The set (or module) of homomorphisms between two objects.",
+      "category": "functor"
+    },
+    "\\operatorname{Ext}": {
+      "name": "Ext",
+      "meaning": "The Ext functor: the right derived functors of $\\operatorname{Hom}$.",
+      "category": "functor"
+    },
+    "\\operatorname{Tor}": {
+      "name": "Tor",
+      "meaning": "The Tor functor: the left derived functors of the tensor product.",
+      "category": "functor"
+    },
+    "\\operatorname{Spec}": {
+      "name": "spectrum",
+      "meaning": "The prime spectrum of a ring: the set of its prime ideals, with the Zariski topology.",
+      "category": "space"
+    },
+    "\\operatorname{supp}": {
+      "name": "support",
+      "meaning": "The support of a module, vector, or function.",
+      "category": "functor"
+    },
+    "\\operatorname{im}": {
+      "name": "image",
+      "meaning": "The image of a map.",
+      "category": "functor"
+    },
+    "\\operatorname{Im}": {
+      "name": "image",
+      "meaning": "The image of a map.",
+      "category": "functor"
+    },
+    "\\ker": {
+      "name": "kernel",
+      "meaning": "The kernel of a map.",
+      "category": "functor"
+    },
+    "\\operatorname{coker}": {
+      "name": "cokernel",
+      "meaning": "The cokernel of a map: its codomain modulo its image.",
+      "category": "functor"
+    },
+    "\\operatorname{rank}": {
+      "name": "rank",
+      "meaning": "The rank of a linear map or module.",
+      "category": "functor"
+    },
+    "\\dim": {
+      "name": "dimension",
+      "meaning": "Dimension (of a vector space, module, or complex).",
+      "category": "functor"
+    },
+    "\\deg": {
+      "name": "degree",
+      "meaning": "The degree of a polynomial, monomial, or homogeneous element.",
+      "category": "functor"
+    },
+    "\\operatorname{lk}": {
+      "name": "link",
+      "meaning": "The link of a face $\\sigma$ in a simplicial complex $\\Delta$: all faces $\\tau$ disjoint from $\\sigma$ with $\\tau \\cup \\sigma \\in \\Delta$.",
+      "category": "operator"
+    },
+    "\\operatorname{link}": {
+      "name": "link",
+      "meaning": "The link of a face in a simplicial complex.",
+      "category": "operator"
+    },
+    "\\operatorname{del}": {
+      "name": "deletion",
+      "meaning": "The deletion of a face $\\sigma$ from a simplicial complex: all faces not containing (or disjoint from) $\\sigma$.",
+      "category": "operator"
+    },
+    "\\operatorname{star}": {
+      "name": "star",
+      "meaning": "The (closed) star of a face: all faces whose union with it is still a face.",
+      "category": "operator"
+    },
+    "\\operatorname{Dgm}": {
+      "name": "persistence diagram",
+      "meaning": "The persistence diagram of a persistence module or filtration.",
+      "category": "invariant"
+    },
+    "\\operatorname{PH}": {
+      "name": "persistent homology",
+      "meaning": "Persistent homology.",
+      "category": "invariant"
+    },
+    "\\operatorname{Vec}": {
+      "name": "vector spaces",
+      "meaning": "The category of vector spaces (often finite-dimensional) over a fixed field.",
+      "category": "category"
+    },
+    "\\mathbf{Vec}": {
+      "name": "vector spaces",
+      "meaning": "The category of vector spaces (often finite-dimensional) over a fixed field.",
+      "category": "category"
+    },
+    "\\operatorname{vect}": {
+      "name": "vector spaces",
+      "meaning": "The category of finite-dimensional vector spaces.",
+      "category": "category"
+    },
+    "\\operatorname{Ab}": {
+      "name": "abelian groups",
+      "meaning": "The category of abelian groups.",
+      "category": "category"
+    },
+    "\\operatorname{Set}": {
+      "name": "sets",
+      "meaning": "The category of sets.",
+      "category": "category"
+    },
+    "\\operatorname{Top}": {
+      "name": "topological spaces",
+      "meaning": "The category of topological spaces.",
+      "category": "category"
+    },
+    "\\operatorname{Ann}": {
+      "name": "annihilator",
+      "meaning": "The annihilator ideal of a module or element.",
+      "category": "functor"
+    },
+    "\\operatorname{Ass}": {
+      "name": "associated primes",
+      "meaning": "The set of associated prime ideals of a module.",
+      "category": "set"
+    },
+    "\\operatorname{depth}": {
+      "name": "depth",
+      "meaning": "The depth of a module: the length of a maximal regular sequence.",
+      "category": "invariant"
+    },
+    "\\operatorname{codim}": {
+      "name": "codimension",
+      "meaning": "Codimension.",
+      "category": "invariant"
+    },
+    "\\operatorname{ht}": {
+      "name": "height",
+      "meaning": "The height of a prime ideal.",
+      "category": "invariant"
+    },
+    "\\operatorname{reg}": {
+      "name": "regularity",
+      "meaning": "Castelnuovo–Mumford regularity.",
+      "category": "invariant"
+    },
+    "\\operatorname{pd}": {
+      "name": "projective dimension",
+      "meaning": "Projective dimension.",
+      "category": "invariant"
+    },
+    "\\operatorname{id}": {
+      "name": "identity",
+      "meaning": "The identity map.",
+      "category": "map"
+    },
+    "\\operatorname{colim}": {
+      "name": "colimit",
+      "meaning": "A colimit (direct limit).",
+      "category": "functor"
+    },
+    "\\varinjlim": {
+      "name": "direct limit",
+      "meaning": "A direct limit (colimit over a directed system).",
+      "category": "functor"
+    },
+    "\\varprojlim": {
+      "name": "inverse limit",
+      "meaning": "An inverse limit (limit over a directed system).",
+      "category": "functor"
+    },
+    "\\widetilde{H}": {
+      "name": "reduced homology",
+      "meaning": "Reduced (co)homology: the ordinary theory with the contribution of a point removed, so $\\widetilde{H}_{-1}(\\varnothing)$ is one-dimensional.",
+      "category": "functor"
+    },
+    "\\Gamma_{\\mathfrak{m}}": {
+      "name": "torsion functor",
+      "meaning": "The $\\mathfrak{m}$-torsion functor: sends a module to the submodule of elements killed by a power of $\\mathfrak{m}$.",
+      "category": "functor"
+    },
+    "d_{B}": {
+      "name": "bottleneck distance",
+      "meaning": "The bottleneck distance between persistence diagrams (or barcodes).",
+      "category": "metric"
+    },
+    "d_{I}": {
+      "name": "interleaving distance",
+      "meaning": "The interleaving distance between persistence modules.",
+      "category": "metric"
+    },
+    "d_{W}": {
+      "name": "Wasserstein distance",
+      "meaning": "A Wasserstein distance between persistence diagrams.",
+      "category": "metric"
+    },
+    "\\beta_{i}": {
+      "name": "Betti number",
+      "meaning": "A Betti number: the rank of a homology group, or (graded) the rank of a term in a minimal free resolution.",
+      "category": "invariant"
+    },
+    "\\beta_{i,j}": {
+      "name": "graded Betti number",
+      "meaning": "The graded Betti number $\\beta_{i,j}$: the number of degree-$j$ generators in the $i$-th step of a minimal graded free resolution.",
+      "category": "invariant"
+    },
+    "\\mu": {
+      "name": "mu",
+      "meaning": "Often a Bass number, a measure, or a Möbius function.",
+      "category": "number"
+    },
+    "\\sigma": {
+      "name": "sigma",
+      "meaning": "Often a face (simplex) of a simplicial complex, or a permutation.",
+      "category": "element"
+    },
+    "\\tau": {
+      "name": "tau",
+      "meaning": "Often a face (simplex) of a simplicial complex.",
+      "category": "element"
+    },
+    "\\Delta": {
+      "name": "Delta",
+      "meaning": "Often an (abstract) simplicial complex.",
+      "category": "complex"
+    },
+    "\\otimes": {
+      "name": "tensor product",
+      "meaning": "The tensor product.",
+      "category": "operator"
+    },
+    "H_{\\mathfrak{*}}^{*}": {
+      "name": "local cohomology",
+      "meaning": "Local cohomology with support in the ideal in the subscript: the right derived functors of the torsion functor $\\Gamma_{\\mathfrak a}(-)$, the submodule of elements killed by a power of $\\mathfrak a$. The superscript is the cohomological degree.",
+      "category": "functor"
+    },
+    "H_{\\mathfrak{*}}^{\\bullet}": {
+      "name": "local cohomology",
+      "meaning": "Local cohomology (all degrees at once) with support in the ideal in the subscript.",
+      "category": "functor"
+    },
+    "H_{*}": {
+      "name": "homology",
+      "meaning": "Homology in the degree given by the subscript.",
+      "category": "functor"
+    },
+    "H^{*}": {
+      "name": "cohomology",
+      "meaning": "Cohomology in the degree given by the superscript.",
+      "category": "functor"
+    },
+    "\\widetilde{H}_{*}": {
+      "name": "reduced homology",
+      "meaning": "Reduced homology in the degree given by the subscript; $\\widetilde{H}_{-1}(\\varnothing)$ is one-dimensional.",
+      "category": "functor"
+    },
+    "\\widetilde{H}^{*}": {
+      "name": "reduced cohomology",
+      "meaning": "Reduced cohomology in the degree given by the superscript.",
+      "category": "functor"
+    },
+    "\\beta_{*}": {
+      "name": "Betti number",
+      "meaning": "A (graded) Betti number: the rank of a homology group, or the number of generators in a step of a minimal free resolution.",
+      "category": "invariant"
+    },
+    "\\mu_{*}": {
+      "name": "Bass number",
+      "meaning": "Often a Bass number $\\mu_i(\\mathfrak p, M) = \\dim_{k(\\mathfrak p)} \\operatorname{Ext}^i(k(\\mathfrak p), M_{\\mathfrak p})$: the multiplicity of the indecomposable injective $E(R/\\mathfrak p)$ in the $i$-th term of a minimal injective resolution.",
+      "category": "invariant"
+    },
+    "\\Gamma_{*}": {
+      "name": "torsion functor",
+      "meaning": "The torsion functor with respect to the ideal in the subscript: the elements killed by a power of that ideal.",
+      "category": "functor"
+    },
+    "M_{*}": {
+      "name": "graded piece / localization",
+      "meaning": "For a graded module, the piece in the degree given by the subscript; for a ring element in the subscript, the localization at that element.",
+      "category": "module"
+    },
+    "\\check{C}^{\\bullet}": {
+      "name": "Čech complex",
+      "meaning": "The Čech complex, whose cohomology computes local cohomology.",
+      "category": "complex"
+    },
+    "\\mathbf{e}_{*}": {
+      "name": "standard basis vector",
+      "meaning": "The standard basis vector with a single 1 in the position given by the subscript.",
+      "category": "vector"
+    },
+    "x^{*}": {
+      "name": "monomial",
+      "meaning": "A monomial $x^a = x_1^{a_1}\\cdots x_n^{a_n}$ with exponent vector $a$.",
+      "category": "element"
+    },
+    "\\Delta_{*}": {
+      "name": "induced subcomplex / filtration step",
+      "meaning": "Often the subcomplex of $\\Delta$ induced on the vertex subset in the subscript, or a step of a filtration.",
+      "category": "complex"
+    },
+    "\\bullet": {
+      "name": "placeholder",
+      "meaning": "A placeholder: $H^\\bullet$ means the whole graded object (all degrees at once), and $F(-)$ or $F(\\bullet)$ marks the slot of an argument.",
+      "category": "symbol"
+    },
+    "\\ast": {
+      "name": "placeholder / dual",
+      "meaning": "A placeholder for an index or argument, or a dual / adjoint marker.",
+      "category": "symbol"
+    },
+    "\\star": {
+      "name": "star",
+      "meaning": "A distinguished element, a join operation, or a placeholder.",
+      "category": "symbol"
+    }
+  },
+  "operators": {
+    "⊗": {
+      "tex": "\\otimes",
+      "name": "tensor product",
+      "meaning": "Tensor product."
+    },
+    "⊕": {
+      "tex": "\\oplus",
+      "name": "direct sum",
+      "meaning": "Direct sum."
+    },
+    "⨁": {
+      "tex": "\\bigoplus",
+      "name": "direct sum",
+      "meaning": "Direct sum over an index set."
+    },
+    "⨂": {
+      "tex": "\\bigotimes",
+      "name": "tensor product",
+      "meaning": "Tensor product over an index set."
+    },
+    "→": {
+      "tex": "\\to",
+      "name": "arrow",
+      "meaning": "A map or morphism from the left object to the right one."
+    },
+    "⟶": {
+      "tex": "\\longrightarrow",
+      "name": "arrow",
+      "meaning": "A map or morphism."
+    },
+    "↦": {
+      "tex": "\\mapsto",
+      "name": "maps to",
+      "meaning": "The element on the left is sent to the element on the right."
+    },
+    "↠": {
+      "tex": "\\twoheadrightarrow",
+      "name": "surjection",
+      "meaning": "A surjective map."
+    },
+    "↪": {
+      "tex": "\\hookrightarrow",
+      "name": "inclusion",
+      "meaning": "An injective map or inclusion."
+    },
+    "⇒": {
+      "tex": "\\Rightarrow",
+      "name": "implies",
+      "meaning": "Implies."
+    },
+    "⇔": {
+      "tex": "\\Leftrightarrow",
+      "name": "if and only if",
+      "meaning": "If and only if."
+    },
+    "≤": {
+      "tex": "\\le",
+      "name": "less than or equal",
+      "meaning": "Less than or equal to (or the order relation of a poset)."
+    },
+    "≥": {
+      "tex": "\\ge",
+      "name": "greater than or equal",
+      "meaning": "Greater than or equal to."
+    },
+    "≠": {
+      "tex": "\\neq",
+      "name": "not equal",
+      "meaning": "Not equal to."
+    },
+    "∈": {
+      "tex": "\\in",
+      "name": "element of",
+      "meaning": "Is an element of."
+    },
+    "∉": {
+      "tex": "\\notin",
+      "name": "not an element of",
+      "meaning": "Is not an element of."
+    },
+    "⊆": {
+      "tex": "\\subseteq",
+      "name": "subset",
+      "meaning": "Is a subset of (possibly equal)."
+    },
+    "⊂": {
+      "tex": "\\subset",
+      "name": "subset",
+      "meaning": "Is a subset of (authors differ on whether equality is allowed)."
+    },
+    "⊊": {
+      "tex": "\\subsetneq",
+      "name": "proper subset",
+      "meaning": "Is a proper subset of."
+    },
+    "⊇": {
+      "tex": "\\supseteq",
+      "name": "superset",
+      "meaning": "Contains."
+    },
+    "∪": {
+      "tex": "\\cup",
+      "name": "union",
+      "meaning": "Union of sets."
+    },
+    "∩": {
+      "tex": "\\cap",
+      "name": "intersection",
+      "meaning": "Intersection of sets."
+    },
+    "⋃": {
+      "tex": "\\bigcup",
+      "name": "union",
+      "meaning": "Union over an index set."
+    },
+    "⋂": {
+      "tex": "\\bigcap",
+      "name": "intersection",
+      "meaning": "Intersection over an index set."
+    },
+    "∖": {
+      "tex": "\\setminus",
+      "name": "set difference",
+      "meaning": "Set difference: elements of the left set not in the right set."
+    },
+    "∅": {
+      "tex": "\\emptyset",
+      "name": "empty set",
+      "meaning": "The empty set."
+    },
+    "∘": {
+      "tex": "\\circ",
+      "name": "composition",
+      "meaning": "Composition of maps (right map applied first)."
+    },
+    "≅": {
+      "tex": "\\cong",
+      "name": "isomorphic",
+      "meaning": "Is isomorphic to."
+    },
+    "≃": {
+      "tex": "\\simeq",
+      "name": "equivalent",
+      "meaning": "Is (homotopy) equivalent or quasi-isomorphic to."
+    },
+    "∼": {
+      "tex": "\\sim",
+      "name": "equivalent",
+      "meaning": "Is equivalent or similar to."
+    },
+    "≡": {
+      "tex": "\\equiv",
+      "name": "congruent",
+      "meaning": "Is congruent or identically equal to."
+    },
+    "≔": {
+      "tex": "\\coloneqq",
+      "name": "defined as",
+      "meaning": "The left side is defined to be the right side."
+    },
+    "∀": {
+      "tex": "\\forall",
+      "name": "for all",
+      "meaning": "For all."
+    },
+    "∃": {
+      "tex": "\\exists",
+      "name": "there exists",
+      "meaning": "There exists."
+    },
+    "∑": {
+      "tex": "\\sum",
+      "name": "sum",
+      "meaning": "Summation."
+    },
+    "∏": {
+      "tex": "\\prod",
+      "name": "product",
+      "meaning": "Product."
+    },
+    "∐": {
+      "tex": "\\coprod",
+      "name": "coproduct",
+      "meaning": "Coproduct or disjoint union."
+    },
+    "⊔": {
+      "tex": "\\sqcup",
+      "name": "disjoint union",
+      "meaning": "Disjoint union."
+    },
+    "×": {
+      "tex": "\\times",
+      "name": "product",
+      "meaning": "Cartesian product (or multiplication)."
+    },
+    "∫": {
+      "tex": "\\int",
+      "name": "integral",
+      "meaning": "Integral."
+    },
+    "∂": {
+      "tex": "\\partial",
+      "name": "boundary",
+      "meaning": "Boundary operator or partial derivative."
+    },
+    "∇": {
+      "tex": "\\nabla",
+      "name": "nabla",
+      "meaning": "Gradient or connection."
+    },
+    "∞": {
+      "tex": "\\infty",
+      "name": "infinity",
+      "meaning": "Infinity."
+    },
+    "·": {
+      "tex": "\\cdot",
+      "name": "product",
+      "meaning": "Multiplication or an action."
+    },
+    "⋯": {
+      "tex": "\\cdots",
+      "name": "and so on",
+      "meaning": "Continues in the same pattern."
+    },
+    "…": {
+      "tex": "\\dots",
+      "name": "and so on",
+      "meaning": "Continues in the same pattern."
+    },
+    "†": {
+      "tex": "\\dagger",
+      "name": "dagger",
+      "meaning": "Adjoint or a distinguished variant."
+    },
+    "∗": {
+      "tex": "\\ast",
+      "name": "star",
+      "meaning": "A distinguished variant, dual, or convolution."
+    },
+    "⊥": {
+      "tex": "\\perp",
+      "name": "perpendicular",
+      "meaning": "Orthogonal or the bottom element."
+    },
+    "∧": {
+      "tex": "\\wedge",
+      "name": "wedge",
+      "meaning": "Meet, exterior product, or logical and."
+    },
+    "∨": {
+      "tex": "\\vee",
+      "name": "vee",
+      "meaning": "Join or logical or."
+    },
+    "∣": {
+      "tex": "\\mid",
+      "name": "divides / such that",
+      "meaning": "Divides, or 'such that' in set-builder notation."
+    },
+    "|": {
+      "tex": "|",
+      "name": "bar",
+      "meaning": "Absolute value, cardinality, restriction, or 'such that'."
+    },
+    "‖": {
+      "tex": "\\|",
+      "name": "norm",
+      "meaning": "A norm."
+    },
+    "⟨": {
+      "tex": "\\langle",
+      "name": "angle bracket",
+      "meaning": "Inner product, generated ideal or subgroup, or pairing."
+    },
+    "≺": {
+      "tex": "\\prec",
+      "name": "precedes",
+      "meaning": "Strictly precedes in a partial order."
+    },
+    "≼": {
+      "tex": "\\preceq",
+      "name": "precedes or equals",
+      "meaning": "Precedes or equals in a partial order."
+    },
+    "∝": {
+      "tex": "\\propto",
+      "name": "proportional",
+      "meaning": "Is proportional to."
+    },
+    "≈": {
+      "tex": "\\approx",
+      "name": "approximately",
+      "meaning": "Is approximately equal to."
+    },
+    "∓": {
+      "tex": "\\mp",
+      "name": "minus or plus",
+      "meaning": "Minus or plus."
+    },
+    "±": {
+      "tex": "\\pm",
+      "name": "plus or minus",
+      "meaning": "Plus or minus."
+    }
+  }
+}

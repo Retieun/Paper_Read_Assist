@@ -8,8 +8,13 @@ was introduced, and where the explanation came from. If the paper never defines
 the term itself, PapAssist goes looking: first in the papers this paper cites,
 then, clearly labelled, in an LLM's general knowledge or on the web.
 
-This document is the plan for building it. Nothing has been built yet. Section
-10 lists the decisions I need from you before starting the prototype.
+This document is the plan for building it. **Status (2026-09-25): the Phase 1
+prototype is built** (see the README for how to run it and Section 7 for what it
+covers); Phases 2 and 3 are next. The decisions in Section 10 were taken as
+follows: Claude via the Anthropic API; Windows first with a Mac/Linux script; the
+user's own paper as the test case; hover-preview and click-to-pin; **no**
+general-knowledge answers from the LLM (only answers grounded in the paper's
+text); paper text may be sent to the API; Python plus a browser UI.
 
 ---
 
@@ -359,31 +364,31 @@ cited (already public) papers.
 
 ## 7. Phased roadmap
 
-### Phase 1 — Prototype (next session, after your go-ahead)
+### Phase 1 — Prototype (built)
 
 Done means all of the following work on the bundled sample paper and on at
 least one real arXiv paper:
 
-- [ ] `papassist.bat` / `papassist.sh`: create venv, install dependencies,
+- [x] `papassist.bat` / `papassist.sh`: create venv, install dependencies,
       start the server, open the browser. Clear message if Python is missing.
-- [ ] Drop a `.tex` file, folder or arXiv source archive → paper renders with
+- [x] Drop a `.tex` file, folder or arXiv source archive → paper renders with
       sections, numbered theorem-like blocks, cross-reference links and
       citation markers. Macro table, bibliography and metadata extracted.
-- [ ] Symbol hover: identifier units tagged; hovering shows the card with
+- [x] Symbol hover: identifier units tagged; hovering shows the card with
       meaning, location link, trust label; all occurrences highlighted.
       Operators resolve through the standard dictionary. Whole-formula
       fallback card.
-- [ ] Term hover: definition environments and inline patterns indexed; known
+- [x] Term hover: definition environments and inline patterns indexed; known
       terms wrapped in the text; hovering shows the definition card.
       Undefined terms show "not defined here" plus citation hints.
-- [ ] Side panel: preview on hover, pin on click, card stack with breadcrumbs,
+- [x] Side panel: preview on hover, pin on click, card stack with breadcrumbs,
       cards themselves hoverable/clickable, pin list exportable as Markdown.
-- [ ] LLM enrichment (if a key is present): glossary pass with scoped symbol
+- [x] LLM enrichment (written against the SDK reference and tested with a stand-in client; not yet exercised against the live API from the development sandbox) (if a key is present): glossary pass with scoped symbol
       meanings and undefined-term list; on-demand "what does X mean here?";
       plain-English toggle. All cached. Everything above still works with no
       key.
-- [ ] Library folder with per-paper `doc.json`, `glossary.json`, cache.
-- [ ] Tests: a synthetic sample paper covering the tricky cases (nested
+- [x] Library folder with per-paper `doc.json`, `glossary.json`, cache.
+- [x] Tests: a synthetic sample paper covering the tricky cases (nested
       macros, scoped indices, definition variants, multi-file input), plus
       unit tests for the tokeniser and pattern extractors.
 
@@ -468,9 +473,9 @@ Each has my recommended default; "go ahead" means all defaults.
    above or drop their `.tex` sources into the repo.
 4. **Hover behaviour.** Default: hover shows a preview after ~250 ms; click
    pins; moving into the panel freezes the preview so you can click inside it.
-5. **Trust policy.** Default: the LLM may answer from general knowledge when
-   no source is found, always under a "No source" label, with a settings
-   toggle to forbid it.
+5. **Trust policy.** Decided: the LLM may **not** answer from general
+   knowledge. It only reports what the paper's text establishes, and says
+   "the paper does not determine this" otherwise.
 6. **Privacy.** Default: paper text is sent to the API when the LLM is on.
    Fine for arXiv papers; say so if you will read unpublished drafts and want
    a stricter default.
