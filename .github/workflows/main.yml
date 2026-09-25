@@ -1,0 +1,17 @@
+name: Run Batch File Online
+
+on:
+  workflow_dispatch: # Allows you to manually trigger the script from GitHub
+
+jobs:
+  run-script:
+    runs-on: windows-latest # Required to execute Windows .bat files
+    
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Execute the batch file
+        shell: cmd
+        run: |
+          papassist.bat
