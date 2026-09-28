@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import tempfile
 import threading
@@ -9,7 +10,7 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -29,7 +30,45 @@ app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 library = Library()
 _resolvers: dict[str, Resolver] = {}
 _jobs: dict[str, dict] = {}
+_tasks: dict[str, dict] = {}
 _lock = threading.Lock()
+FETCH = None  # tests inject a fake network here
+
+
+def _fetch():
+    if FETCH is not None:
+        return FETCH
+    import os
+
+    fake_dir = os.environ.get("PAPASSIST_FAKE_ARXIV")
+    if fake_dir:  # testing aid: serve arXiv requests from a folder
+        from .refs.arxiv import directory_fetch
+
+        return directory_fetch(Path(fake_dir))
+    from .refs.arxiv import default_fetch
+
+    return default_fetch
+
+
+def run_task(name: str, fn) -> str:
+    import uuid
+
+    job_id = uuid.uuid4().hex[:10]
+    with _lock:
+        _tasks[job_id] = {"id": job_id, "name": name, "status": "running", "message": "", "result": None}
+
+    def go() -> None:
+        try:
+            result = fn(lambda msg: _tasks[job_id].__setitem__("message", msg))
+            with _lock:
+                _tasks[job_id].update({"status": "done", "result": result})
+        except Exception as e:
+            traceback.print_exc()
+            with _lock:
+                _tasks[job_id].update({"status": "error", "message": str(e)[:600]})
+
+    threading.Thread(target=go, daemon=True).start()
+    return job_id
 
 
 def _llm_client():
@@ -59,6 +98,47 @@ def get_resolver(pid: str) -> Resolver:
             r = Resolver(paper.doc, paper.glossary, llm=_llm_client())
             _resolvers[pid] = r
         return r
+
+
+IMG_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp")
+FILE_EXTS = (".pdf", ".eps", ".ps", ".tif", ".tiff")
+_ASSET_RE = re.compile(r'<img class="pa-img" src="pa-asset/([^"]+)" alt="([^"]*)">')
+
+
+def _find_asset(source: Path, ref: str) -> Optional[Path]:
+    ref = ref.replace("\\", "/").strip()
+    cands = [ref] + [ref + ext for ext in IMG_EXTS + FILE_EXTS]
+    for c in cands:
+        p = (source / c).resolve()
+        if str(p).startswith(str(source.resolve())) and p.is_file():
+            return p
+    # graphicspath-style: search by file name anywhere in the sources
+    name = Path(ref).name
+    for p in source.rglob(name + "*"):
+        if p.is_file() and (p.name == name or p.stem == name):
+            return p
+    return None
+
+
+def rewrite_assets(blocks: list[dict], paper: Paper) -> list[dict]:
+    """Point figure images at the paper's own files; show a link for formats browsers cannot display."""
+    source = paper.folder / "source"
+
+    def repl(m: re.Match) -> str:
+        ref, alt = m.group(1), m.group(2)
+        hit = _find_asset(source, ref)
+        if hit is None:
+            return f'<div class="pa-figure-missing">[figure file not found: {ref}]</div>'
+        rel = hit.relative_to(source).as_posix()
+        url = f"/api/papers/{paper.id}/source/{rel}"
+        if hit.suffix.lower() in IMG_EXTS:
+            return f'<img class="pa-img" src="{url}" alt="{alt}">'
+        return f'<div class="pa-figure-missing">figure file <a class="pa-extlink" href="{url}" target="_blank" rel="noopener">{rel}</a> (open it in a new tab; this format cannot be shown inline)</div>'
+
+    for b in blocks:
+        if "pa-asset/" in b["html"]:
+            b["html"] = _ASSET_RE.sub(repl, b["html"])
+    return blocks
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +208,23 @@ def delete_paper(pid: str) -> dict:
 class OpenIn(BaseModel):
     path: str
     main: Optional[str] = None
+    background: bool = False
+
+
+def _ingest_job(paths: list[Path], main_name: Optional[str] = None, cleanup: Optional[Path] = None) -> str:
+    """Ingest in a background thread; the HTTP request returns at once and the client polls the job."""
+
+    def work(progress):
+        try:
+            paper = library.add(paths, main_name=main_name, progress=progress)
+        except Exception as e:
+            raise RuntimeError(f"could not ingest ({type(e).__name__}): {e}") from e
+        finally:
+            if cleanup is not None:
+                shutil.rmtree(cleanup, ignore_errors=True)
+        return _after_add(paper)
+
+    return run_task("ingest", work)
 
 
 def _after_add(paper: Paper) -> dict:
@@ -141,10 +238,13 @@ def open_local(body: OpenIn) -> dict:
     p = Path(body.path).expanduser()
     if not p.exists():
         raise HTTPException(400, f"path not found: {p}")
+    if body.background:
+        return {"job": _ingest_job([p], main_name=body.main)}
     try:
         paper = library.add([p], main_name=body.main)
     except Exception as e:  # surface the cause to the UI
-        raise HTTPException(400, f"could not ingest: {e}") from e
+        traceback.print_exc()
+        raise HTTPException(400, f"could not ingest ({type(e).__name__}): {e}") from e
     return _after_add(paper)
 
 
@@ -161,10 +261,61 @@ async def upload(files: list[UploadFile] = File(...)) -> dict:
         try:
             paper = library.add(paths)
         except Exception as e:
-            raise HTTPException(400, f"could not ingest: {e}") from e
+            traceback.print_exc()
+            raise HTTPException(400, f"could not ingest ({type(e).__name__}): {e}") from e
         return _after_add(paper)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+# Chunked uploads: the browser sends each file in small pieces and then asks for the
+# ingest to start in the background.  Proxies in front of the server (a GitHub
+# Codespace, a remote desktop) may cap the size or duration of one request; small
+# requests that return immediately get through where one big, slow POST is cut off.
+_uploads: dict[str, dict] = {}
+
+
+@app.post("/api/uploads")
+def upload_begin() -> dict:
+    import uuid
+
+    uid = uuid.uuid4().hex[:12]
+    with _lock:
+        _uploads[uid] = {"dir": Path(tempfile.mkdtemp(prefix="papassist-upload-")), "files": []}
+    return {"upload": uid}
+
+
+@app.post("/api/uploads/{uid}/chunk")
+async def upload_chunk(uid: str, request: Request, name: str = Query(...), offset: int = Query(0)) -> dict:
+    up = _uploads.get(uid)
+    if up is None:
+        raise HTTPException(404, "unknown upload (was the server restarted?); please open the file again")
+    safe = Path(name.replace("\\", "/")).name or "upload"
+    dest = up["dir"] / safe
+    data = await request.body()
+    have = dest.stat().st_size if dest.exists() else 0
+    if offset == have - len(data) and len(data) > 0:
+        return {"received": have}  # a retried chunk that already arrived
+    if offset != have:
+        raise HTTPException(409, f"chunk out of order for {safe}: have {have} bytes, got offset {offset}")
+    with open(dest, "ab") as fh:
+        fh.write(data)
+    if safe not in up["files"]:
+        up["files"].append(safe)
+    return {"received": have + len(data)}
+
+
+@app.post("/api/uploads/{uid}/finish")
+def upload_finish(uid: str) -> dict:
+    with _lock:
+        up = _uploads.pop(uid, None)
+    if up is None:
+        raise HTTPException(404, "unknown upload (was the server restarted?); please open the file again")
+    paths = [up["dir"] / n for n in up["files"] if (up["dir"] / n).exists()]
+    if not paths:
+        shutil.rmtree(up["dir"], ignore_errors=True)
+        raise HTTPException(400, "no files were uploaded")
+    return {"job": _ingest_job(paths, cleanup=up["dir"])}
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +337,7 @@ def paper_payload(pid: str) -> dict:
         "meta": paper.meta,
         "title": doc.title,
         "authors": doc.authors,
-        "blocks": block_payload(doc, glossary),
+        "blocks": rewrite_assets(block_payload(doc, glossary), paper),
         "units": units_payload(doc),
         "toc": toc_payload(doc),
         "macros": expand_macros_for_mathjax(pre),
@@ -214,10 +365,13 @@ def resolve(
     base: Optional[str] = None,
     term: Optional[str] = None,
     mid: Optional[str] = None,
+    uid1: Optional[str] = None,
+    uid2: Optional[str] = None,
     op: Optional[str] = None,
     label: Optional[str] = None,
     cite: Optional[str] = None,
     block: Optional[str] = Query(default=None),
+    retag: bool = False,
 ) -> dict:
     r = get_resolver(pid)
     if uid is not None and uid in r._unit_lookup:
@@ -228,6 +382,8 @@ def resolve(
         card = {"kind": "symbol", "status": "not_found", "tex": tex or "", "key": key or "", "entries": [], "units": {}}
     elif term is not None:
         card = r.resolve_term(term, block)
+    elif mid is not None and uid1 and uid2:
+        card = r.resolve_range(mid, uid1, uid2, block)
     elif mid is not None:
         card = r.resolve_formula(mid, block)
     elif op is not None:
@@ -239,7 +395,13 @@ def resolve(
     else:
         raise HTTPException(400, "nothing to resolve")
     card["block"] = block
-    return card
+    if retag:
+        from .refs.lookup import retag_card
+
+        return retag_card(card, pid)
+    from .refs.service import attach_reference_info
+
+    return attach_reference_info(card, library, get_paper(pid), get_resolver)
 
 
 @app.get("/api/papers/{pid}/block/{bid}")
@@ -260,6 +422,102 @@ def source_file(pid: str, path: str):
     if not str(p).startswith(str((paper.folder / "source").resolve())) or not p.exists():
         raise HTTPException(404)
     return FileResponse(str(p))
+
+
+# ---------------------------------------------------------------------------
+# cited papers
+# ---------------------------------------------------------------------------
+
+@app.get("/api/jobs/{job_id}")
+def job_status(job_id: str) -> dict:
+    job = _tasks.get(job_id)
+    if job is None:
+        raise HTTPException(404, "unknown job")
+    return job
+
+
+@app.get("/api/papers/{pid}/references")
+def references(pid: str) -> dict:
+    from .refs.service import references_status
+
+    return {"references": references_status(library, get_paper(pid))}
+
+
+@app.post("/api/papers/{pid}/references/{key}/fetch")
+def fetch_reference(pid: str, key: str) -> dict:
+    paper = get_paper(pid)
+    entry = paper.doc.bibliography.get(key)
+    if entry is None:
+        raise HTTPException(404, f"no bibliography entry {key}")
+
+    def work(progress) -> dict:
+        from .ingest.bib import BibEntry
+        from .refs.arxiv import NoSourceError, resolve_arxiv_id
+
+        e = BibEntry(**{k: v for k, v in entry.items() if k != "short"})
+        ref_ids = paper.meta.get("ref_ids", {})
+        aid = ref_ids.get(key, {}).get("arxiv")
+        if not aid:
+            progress("Looking the reference up on arXiv…")
+            aid, how = resolve_arxiv_id(e, fetch=_fetch(), allow_search=True)
+            ref_ids[key] = {"arxiv": aid, "method": how}
+            paper.save_meta(ref_ids=ref_ids)
+        if not aid:
+            raise RuntimeError("Could not find this reference on arXiv (no identifier in the bibliography and no matching title).")
+        progress(f"Downloading arXiv:{aid} and converting it…")
+        try:
+            other = library.add_from_arxiv(aid, fetch=_fetch(), role="reference", cited_by=pid)
+        except NoSourceError as ex:
+            raise RuntimeError(str(ex)) from ex
+        return {"paper_id": other.id, "arxiv": aid, "title": other.meta.get("title")}
+
+    return {"job": run_task(f"fetch {key}", work)}
+
+
+@app.get("/api/papers/{pid}/lookup")
+def lookup(pid: str, term: Optional[str] = None, key: Optional[str] = None, tex: Optional[str] = None, ref: Optional[str] = None) -> dict:
+    from .refs.service import lookup_in_library
+
+    paper = get_paper(pid)
+    if term:
+        results = lookup_in_library(library, paper, get_resolver, term=term, ref_key=ref)
+    elif key:
+        keys = [key]
+        try:
+            from .render.mathunits import analyze_math
+
+            a = analyze_math(tex or key)
+            tops = [u for u in a.units if u.parent is None]
+            if tops:
+                keys = list(dict.fromkeys([key, *tops[0].keys]))
+        except Exception:
+            pass
+        results = lookup_in_library(library, paper, get_resolver, keys=keys, ref_key=ref)
+    else:
+        raise HTTPException(400, "term or key required")
+    return {"results": results}
+
+
+class ArxivIn(BaseModel):
+    id: str
+
+
+@app.post("/api/papers/arxiv")
+def open_arxiv(body: ArxivIn) -> dict:
+    from .refs.arxiv import normalize_arxiv_id
+
+    aid = normalize_arxiv_id(body.id)
+    if not aid:
+        raise HTTPException(400, "not an arXiv identifier")
+
+    def work(progress) -> dict:
+        progress(f"Downloading arXiv:{aid}…")
+        paper = library.add_from_arxiv(aid, fetch=_fetch(), role="paper")
+        if settings.auto_enrich and settings.llm_enabled and settings.api_key_present:
+            start_enrichment(paper.id)
+        return {"paper_id": paper.id, "title": paper.meta.get("title")}
+
+    return {"job": run_task(f"arxiv {aid}", work)}
 
 
 # ---------------------------------------------------------------------------

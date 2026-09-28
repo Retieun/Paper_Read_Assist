@@ -5,6 +5,8 @@ import re
 
 PH_RE = re.compile(r"⟦(m\d+)⟧")
 PH = r"⟦(?:m\d+)⟧"
+DPH_RE = re.compile(r"\u27ea(m\d+)\u27eb")           # displayed formula placeholder ⟪m12⟫
+PH_ANY_RE = re.compile(r"[\u27e6\u27ea](m\d+)[\u27e7\u27eb]")
 
 _ABBREV = ("e.g.", "i.e.", "cf.", "resp.", "vs.", "Thm.", "Def.", "Lem.", "Prop.", "Cor.", "Sec.", "Fig.", "Eq.", "et al.", "viz.", "No.", "pp.", "p.", "Ch.", "Rem.", "Ex.")
 
@@ -36,7 +38,7 @@ def split_sentences(text: str) -> list[tuple[int, int]]:
             k = j
             while k < n and text[k] in " \t\n ":
                 k += 1
-            if k >= n or text[k].isupper() or text[k] == "⟦" or text[k] in "(\"“" or text[k].isdigit() or (k > j and text[k] == "\n"):
+            if k >= n or text[k].isupper() or text[k] in "⟦⟪" or text[k] in "(\"“" or text[k].isdigit() or (k > j and text[k] == "\n"):
                 spans.append((start, j))
                 start = k
                 i = k

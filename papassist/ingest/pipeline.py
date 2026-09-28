@@ -8,7 +8,7 @@ from typing import Optional
 from .ast_to_doc import DocBuilder
 from .bib import load_bibliography
 from .document import Document
-from .pandoc_runner import PandocError, find_main_tex, run_pandoc, sanitize_tex
+from .pandoc_runner import PandocError, find_main_tex, run_pandoc_with_fallback, sanitize_tex
 from .preamble import parse_sources
 
 
@@ -45,7 +45,8 @@ def ingest_folder(folder: Path, paper_id: str, main: Optional[Path] = None) -> D
     if main is None:
         raise PandocError("No .tex file with \\documentclass was found.")
     pre = parse_sources(main)
-    ast = run_pandoc(main, workdir=main.parent)
+    ast, notes = run_pandoc_with_fallback(main, workdir=main.parent)
     bib = load_bibliography(main, pre.bib_files)
     doc = DocBuilder(ast, pre, bib, paper_id, diagrams=diagrams, source_main=str(main.relative_to(folder))).build()
+    doc.warnings.extend(notes)
     return doc

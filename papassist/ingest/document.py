@@ -11,8 +11,9 @@ class MathItem:
     tex: str            # TeX as written (macro-expanded by pandoc), labels removed
     display: bool
     tagged: str         # TeX with \class{pa-u-N}{...} wrappers, ready for MathJax
-    bare: bool          # True when `tagged` is a top-level AMS environment (no \[ \] needed)
     block: str          # id of the block containing this formula
+    src: str = ""       # the exact TeX the units' offsets refer to (differs from `tex` for displayed math)
+    bare: bool = False  # True when `tagged` is a top-level AMS environment (no \[ \] needed)
     units: list[dict] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)
     numbers: list[str] = field(default_factory=list)
@@ -75,6 +76,7 @@ class Document:
     warnings: list[str] = field(default_factory=list)
     source_main: str = ""
     documentclass: Optional[str] = None
+    cite_labels: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -91,6 +93,7 @@ class Document:
             "warnings": self.warnings,
             "source_main": self.source_main,
             "documentclass": self.documentclass,
+            "cite_labels": self.cite_labels,
         }
 
     @classmethod
@@ -101,7 +104,7 @@ class Document:
             paper_id=d["paper_id"], title=d["title"], authors=d["authors"], blocks=blocks, math=math,
             labels=d["labels"], macros=d["macros"], theorems=d["theorems"], bibliography=d["bibliography"],
             diagrams=d.get("diagrams", []), warnings=d.get("warnings", []), source_main=d.get("source_main", ""),
-            documentclass=d.get("documentclass"),
+            documentclass=d.get("documentclass"), cite_labels=d.get("cite_labels", {}),
         )
 
     def block_by_id(self, bid: str) -> Optional[Block]:

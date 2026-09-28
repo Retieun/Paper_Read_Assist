@@ -315,7 +315,7 @@ carries one of these labels, and sources are never blended silently:
 | **Local web app**: Python server + browser UI, started by a `.bat`/`.sh` | Hover-heavy UI wants a browser; MathJax renders TeX faithfully; nothing to install beyond Python; works on Windows, Mac, Linux; no Electron build step. |
 | **Python 3.11+**, FastAPI + uvicorn | Best ecosystem for the parsing side (`pypandoc_binary`, `pylatexenc`, `bibtexparser`, `beautifulsoup4`) and the official `anthropic` SDK. |
 | **pandoc** (bundled via pip) for LaTeX | Verified today on theorem environments, labels, citations, `\input`, macros. Far more robust than a home-grown parser; LaTeXML would be higher fidelity but is a painful Windows install and slow. |
-| **MathJax 3**, vendored | Widest LaTeX-math coverage; `\class{}` lets the server tag hover targets (verified today); works offline. |
+| **MathJax 4**, vendored (TeX font) | Widest LaTeX-math coverage; `\class{}` lets the server tag hover targets; automatic line breaking of long formulas (the reason for moving from version 3); works offline. |
 | **Vanilla JavaScript** front end | No build tooling; the UI is one page (reader + panel). Can move to a framework later if it grows. |
 | **JSON + SQLite** on disk for the library and caches | Simple, inspectable, no database server. |
 | **Claude API** via the official `anthropic` SDK | See Section 6. Structured JSON outputs for the glossary pass, prompt caching for repeated questions about the same paper, document citations to quote exact passages from cited papers, and a server-side web search tool for the last-resort lookup. |
@@ -395,14 +395,19 @@ least one real arXiv paper:
 Deliberately **not** in Phase 1: fetching cited papers, arXiv HTML input, web
 search, prerequisite graph.
 
-### Phase 2 — Cited papers and arXiv
+### Phase 2 — Cited papers and arXiv (partly built)
 
-- Citation resolution: `.bib`/`.bbl` → arXiv id (direct, DOI, title search).
-- Fetch and ingest cited sources into the library; jump to "Def. 2.1"-style
-  pointers; search cited term indexes; "Cited paper" cards with links.
-- arXiv id / URL as input; arXiv HTML (LaTeXML) as an alternative ingest path.
-- The agentic resolver (tool loop) replacing the fixed chain for hard cases.
-- Two-hop recursion with caching.
+- [x] Citation resolution: `.bib`/`.bbl` → arXiv id (bibliography fields, then a
+      title search on the arXiv API).
+- [x] Fetch and ingest cited sources into the library; jump to "Def. 2.1"-style
+      pointers; search cited term and symbol indexes; "Cited paper" cards whose
+      text is hoverable and resolves inside that paper.
+- [x] arXiv id / URL as input.
+- [x] Compact citation labels following the bibliography style, with a
+      References section and per-entry index buttons.
+- [ ] arXiv HTML (LaTeXML) as an alternative ingest path.
+- [ ] The agentic resolver (tool loop) replacing the fixed chain for hard cases.
+- [ ] Two-hop recursion with caching (today each hop is a click).
 
 ### Phase 3 — Depth and polish
 
