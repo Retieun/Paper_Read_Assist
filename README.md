@@ -27,6 +27,11 @@ Python; install 3.11 or newer from [python.org](https://www.python.org/downloads
 `brew install python@3.12`, and the launcher picks the newest one it finds. If the file is not
 executable after downloading, `bash papassist.sh` works too.
 
+Both launchers create a private Python environment in `.venv` on the first run and install the
+dependencies into it (pip packages installed elsewhere, for example with Homebrew, are not
+used). If that first installation fails or is interrupted, simply run the launcher again: it
+checks the environment and finishes the installation. Deleting the `.venv` folder starts over.
+
 A browser tab opens at <http://127.0.0.1:8765/>. Drop in:
 
 * a `.tex` file together with its `.bib` (select both, or drop a folder as a `.zip`),

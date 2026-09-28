@@ -3,12 +3,13 @@
 set -e
 cd "$(dirname "$0")"
 
+need_py='import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'
+check_deps='import fastapi, uvicorn, pypandoc, anthropic, bibtexparser, pylatexenc, dotenv'
+
 # Find Python 3.11 or newer. macOS ships an older python3, so try the versioned names first.
 PY=""
 for cand in python3.13 python3.12 python3.11 python3 python; do
-  if command -v "$cand" >/dev/null 2>&1 && "$cand" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
-    PY="$cand"; break
-  fi
+  if command -v "$cand" >/dev/null 2>&1 && "$cand" -c "$need_py" 2>/dev/null; then PY="$cand"; break; fi
 done
 if [ -z "$PY" ]; then
   echo "PapAssist needs Python 3.11 or newer, and none was found on this computer."
@@ -19,16 +20,26 @@ if [ -z "$PY" ]; then
 fi
 
 # An environment made with an older Python is rebuilt.
-if [ -x ".venv/bin/python" ] && ! .venv/bin/python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+if [ -x ".venv/bin/python" ] && ! .venv/bin/python -c "$need_py" 2>/dev/null; then
   echo "Recreating the Python environment with $PY (the existing one used an older Python)..."
   rm -rf .venv
 fi
 if [ ! -x ".venv/bin/python" ]; then
-  echo "Creating the Python environment with $("$PY" --version) (first run only, takes a minute)..."
+  echo "Creating the Python environment with $("$PY" --version) (first run only)..."
   "$PY" -m venv .venv
-  .venv/bin/python -m pip install --quiet --upgrade pip
-  .venv/bin/python -m pip install --quiet -r requirements.txt
 fi
+
+# Install the dependencies, or finish an installation that failed or was interrupted earlier.
+if ! .venv/bin/python -c "$check_deps" >/dev/null 2>&1; then
+  echo "Installing dependencies (takes a minute)..."
+  .venv/bin/python -m pip install -q --upgrade pip >/dev/null 2>&1 || true
+  if ! .venv/bin/python -m pip install -q -r requirements.txt || ! .venv/bin/python -c "$check_deps"; then
+    echo
+    echo "Dependency installation failed (see the messages above). Check your internet connection and run this script again."
+    exit 1
+  fi
+fi
+
 if [ -f .env ]; then set -a; . ./.env; set +a; fi
 if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
   echo "[PapAssist] No ANTHROPIC_API_KEY found: running without the LLM. Put ANTHROPIC_API_KEY=... in a .env file next to this script to enable it."
