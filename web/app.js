@@ -42,7 +42,7 @@
 
     const reader = $('#reader');
     reader.innerHTML = paper.blocks.map(blockHtml).join('');
-    $('#dropzone').hidden = true; reader.hidden = false;
+    $('#dropzone').hidden = true; reader.hidden = false; status.textContent = '';
     renderToc(paper.toc);
     const prog = document.createElement('div'); prog.className = 'progress'; prog.textContent = 'Typesetting formulas…'; reader.prepend(prog);
 
@@ -58,6 +58,7 @@
     buildIndexes();
     pollStatus();
     decorateReferences();
+    if (paper.warnings && paper.warnings.length) { toast(paper.warnings[0], 10000); console.warn('ingest warnings', paper.warnings); }
   }
 
   async function defineMacros(macros) {
@@ -619,7 +620,7 @@
     for (const f of files) fd.append('files', f, f.name);
     $('#dz-status').textContent = `Converting ${files.length} file(s)…`;
     try { const res = await api('/api/papers/upload', { method: 'POST', body: fd }); await loadPaper(res.paper_id); }
-    catch (e) { $('#dz-status').textContent = 'Could not open: ' + e.message; toast(e.message, 6000); }
+    catch (e) { $('#dz-status').textContent = 'Could not open: ' + e.message; toast('Could not open: ' + e.message, 12000); console.error('open failed', e); }
   }
   $('#btn-open').addEventListener('click', () => $('#file-input').click());
   $('#file-input').addEventListener('change', (e) => { if (e.target.files.length) openFiles(Array.from(e.target.files)); e.target.value = ''; });
@@ -628,7 +629,8 @@
   ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('drag'); }));
   dz.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) openFiles(Array.from(e.dataTransfer.files)); });
   document.addEventListener('dragover', (e) => e.preventDefault());
-  document.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files.length && !dz.hidden) openFiles(Array.from(e.dataTransfer.files)); });
+  // files can be dropped anywhere, also while a paper is open
+  document.addEventListener('drop', (e) => { e.preventDefault(); if (e.dataTransfer.files.length) { toast(`Opening ${e.dataTransfer.files.length} file(s)…`); openFiles(Array.from(e.dataTransfer.files)); } });
   $('#path-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const path = $('#path-input').value.trim(); if (!path) return;

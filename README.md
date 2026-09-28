@@ -27,10 +27,16 @@ local virtual environment on first run.
 A browser tab opens at <http://127.0.0.1:8765/>. Drop in:
 
 * a `.tex` file together with its `.bib` (select both, or drop a folder as a `.zip`),
+* a project archive as exported by Overleaf or zipped from a folder (`.zip`, with figures,
+  subfolders, `\input` files, local `.sty`/`.cls` files, `.bbl`, ...),
 * an arXiv source archive (`.tar.gz`),
 * or type a path on your computer into the box.
 
-The paper is converted (a few seconds), typeset with MathJax, and the glossary is built.
+Files can be dropped anywhere on the page, also while another paper is open. The paper is
+converted (a few seconds), typeset with MathJax, and the glossary is built. Figures in
+PNG/JPG/GIF/SVG format are shown in place; PDF/EPS figures appear as a link that opens the
+file in a new tab. If the conversion fails, the message names the cause and lists the files
+that were received.
 
 ### Reading
 

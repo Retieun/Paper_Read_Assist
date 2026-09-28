@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import tempfile
 import threading
@@ -99,6 +100,47 @@ def get_resolver(pid: str) -> Resolver:
         return r
 
 
+IMG_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".bmp")
+FILE_EXTS = (".pdf", ".eps", ".ps", ".tif", ".tiff")
+_ASSET_RE = re.compile(r'<img class="pa-img" src="pa-asset/([^"]+)" alt="([^"]*)">')
+
+
+def _find_asset(source: Path, ref: str) -> Optional[Path]:
+    ref = ref.replace("\\", "/").strip()
+    cands = [ref] + [ref + ext for ext in IMG_EXTS + FILE_EXTS]
+    for c in cands:
+        p = (source / c).resolve()
+        if str(p).startswith(str(source.resolve())) and p.is_file():
+            return p
+    # graphicspath-style: search by file name anywhere in the sources
+    name = Path(ref).name
+    for p in source.rglob(name + "*"):
+        if p.is_file() and (p.name == name or p.stem == name):
+            return p
+    return None
+
+
+def rewrite_assets(blocks: list[dict], paper: Paper) -> list[dict]:
+    """Point figure images at the paper's own files; show a link for formats browsers cannot display."""
+    source = paper.folder / "source"
+
+    def repl(m: re.Match) -> str:
+        ref, alt = m.group(1), m.group(2)
+        hit = _find_asset(source, ref)
+        if hit is None:
+            return f'<div class="pa-figure-missing">[figure file not found: {ref}]</div>'
+        rel = hit.relative_to(source).as_posix()
+        url = f"/api/papers/{paper.id}/source/{rel}"
+        if hit.suffix.lower() in IMG_EXTS:
+            return f'<img class="pa-img" src="{url}" alt="{alt}">'
+        return f'<div class="pa-figure-missing">figure file <a class="pa-extlink" href="{url}" target="_blank" rel="noopener">{rel}</a> (open it in a new tab; this format cannot be shown inline)</div>'
+
+    for b in blocks:
+        if "pa-asset/" in b["html"]:
+            b["html"] = _ASSET_RE.sub(repl, b["html"])
+    return blocks
+
+
 # ---------------------------------------------------------------------------
 # pages
 # ---------------------------------------------------------------------------
@@ -182,7 +224,8 @@ def open_local(body: OpenIn) -> dict:
     try:
         paper = library.add([p], main_name=body.main)
     except Exception as e:  # surface the cause to the UI
-        raise HTTPException(400, f"could not ingest: {e}") from e
+        traceback.print_exc()
+        raise HTTPException(400, f"could not ingest ({type(e).__name__}): {e}") from e
     return _after_add(paper)
 
 
@@ -199,7 +242,8 @@ async def upload(files: list[UploadFile] = File(...)) -> dict:
         try:
             paper = library.add(paths)
         except Exception as e:
-            raise HTTPException(400, f"could not ingest: {e}") from e
+            traceback.print_exc()
+            raise HTTPException(400, f"could not ingest ({type(e).__name__}): {e}") from e
         return _after_add(paper)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -224,7 +268,7 @@ def paper_payload(pid: str) -> dict:
         "meta": paper.meta,
         "title": doc.title,
         "authors": doc.authors,
-        "blocks": block_payload(doc, glossary),
+        "blocks": rewrite_assets(block_payload(doc, glossary), paper),
         "units": units_payload(doc),
         "toc": toc_payload(doc),
         "macros": expand_macros_for_mathjax(pre),

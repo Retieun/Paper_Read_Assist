@@ -24,7 +24,7 @@ from typing import Optional
 from ..glossary.build import Glossary, build_glossary
 from ..ingest.document import Document
 from ..ingest.pipeline import ingest_folder
-from ..ingest.pandoc_runner import find_main_tex
+from ..ingest.pandoc_runner import describe_folder, find_main_tex, wrap_fragment
 
 
 def default_library_dir() -> Path:
@@ -87,6 +87,33 @@ class Paper:
         d = self.folder / "cache"
         d.mkdir(exist_ok=True)
         (d / (key + ".json")).write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+
+
+
+def _rmtree_retry(path: Path, attempts: int = 6) -> None:
+    """Windows may keep freshly written files locked for a moment (antivirus, indexer); retry."""
+    for i in range(attempts):
+        try:
+            shutil.rmtree(path)
+            return
+        except OSError:
+            if i == attempts - 1:
+                raise
+            time.sleep(0.4 * (i + 1))
+
+
+def _move_dir(src: Path, dst: Path, attempts: int = 6) -> None:
+    for i in range(attempts):
+        try:
+            shutil.move(str(src), str(dst))
+            return
+        except OSError:
+            if i == attempts - 1:
+                # last resort: copy then delete what we can
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+                shutil.rmtree(src, ignore_errors=True)
+                return
+            time.sleep(0.4 * (i + 1))
 
 
 class Library:
@@ -158,13 +185,22 @@ class Library:
                 (staging / (src.stem if src.stem.endswith(".tex") else src.stem + ".tex")).write_bytes(data)
             else:
                 shutil.copy2(src, staging / src.name)
-        # flatten a single top-level directory (typical for archives)
-        entries = [e for e in staging.iterdir() if not e.name.startswith(".")]
-        if len(entries) == 1 and entries[0].is_dir():
-            inner = entries[0]
-            for item in list(inner.iterdir()):
-                shutil.move(str(item), str(staging / item.name))
-            inner.rmdir()
+        # drop archive junk, then flatten a single top-level directory (typical for archives)
+        for junk in list(staging.rglob("*")):
+            if junk.name in ("__MACOSX", ".DS_Store", "Thumbs.db", "desktop.ini") or junk.name.startswith("._"):
+                if junk.is_dir():
+                    shutil.rmtree(junk, ignore_errors=True)
+                elif junk.exists():
+                    junk.unlink()
+        for _ in range(3):
+            entries = [e for e in staging.iterdir() if not e.name.startswith(".")]
+            if len(entries) == 1 and entries[0].is_dir():
+                inner = entries[0]
+                for item in list(inner.iterdir()):
+                    shutil.move(str(item), str(staging / item.name))
+                inner.rmdir()
+            else:
+                break
 
     def find_by_arxiv(self, arxiv_id: str) -> Optional[Paper]:
         for m in self.list():
@@ -202,13 +238,18 @@ class Library:
 
     def add(self, inputs: list[Path], main_name: Optional[str] = None, extra_meta: Optional[dict] = None, pid: Optional[str] = None) -> Paper:
         """Ingest sources (files, folders, archives) and return the Paper."""
-        tmp = self.root / f".staging-{int(time.time() * 1000)}"
+        tmp = self.root / f"_s{int(time.time() * 1000) % 100000000:08d}"
         try:
             self._stage_sources(tmp / "source", [Path(p) for p in inputs])
             source = tmp / "source"
             main = (source / main_name) if main_name else find_main_tex(source)
+            if main is None:
+                main = wrap_fragment(source)
             if main is None or not main.exists():
-                raise ValueError("No LaTeX file with \\documentclass was found in the input.")
+                raise ValueError(
+                    "No .tex file was found in the input (PDF-only input is not supported). Files received: "
+                    + describe_folder(source)
+                )
             digest = hashlib.sha1()
             for p in sorted(source.rglob("*.tex")):
                 digest.update(p.read_bytes())
@@ -217,8 +258,8 @@ class Library:
             glossary = build_glossary(doc)
             folder = self.root / pid
             if folder.exists():
-                shutil.rmtree(folder)
-            shutil.move(str(tmp), str(folder))
+                _rmtree_retry(folder)
+            _move_dir(tmp, folder)
             paper = Paper(folder)
             (folder / "doc.json").write_text(json.dumps(doc.to_dict(), ensure_ascii=False), encoding="utf-8")
             paper.save_glossary(glossary)
