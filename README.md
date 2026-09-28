@@ -22,7 +22,10 @@ Requirements: Python 3.11 or newer. Everything else (including pandoc) is instal
 local virtual environment on first run.
 
 **Windows**: double-click `papassist.bat` (or run `papassist.bat C:\path\to\paper.tex`).
-**macOS / Linux**: `./papassist.sh` (or `./papassist.sh path/to/paper.tex`).
+**macOS / Linux**: `./papassist.sh` (or `./papassist.sh path/to/paper.tex`). macOS ships an old
+Python; install 3.11 or newer from [python.org](https://www.python.org/downloads/macos/) or with
+`brew install python@3.12`, and the launcher picks the newest one it finds. If the file is not
+executable after downloading, `bash papassist.sh` works too.
 
 A browser tab opens at <http://127.0.0.1:8765/>. Drop in:
 
