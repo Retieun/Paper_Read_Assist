@@ -193,10 +193,11 @@ def run_pandoc_with_fallback(main_tex: Path, workdir: Optional[Path] = None) -> 
     were only defined in those files.  Returns the AST and a list of warnings.
     """
     workdir = workdir or main_tex.parent
+    styles = local_style_files(workdir)
     try:
-        return run_pandoc(main_tex, workdir=workdir), []
+        # a template that sends pandoc into a loop should not cost the reader ten minutes
+        return run_pandoc(main_tex, workdir=workdir, timeout=180 if styles else 600), []
     except PandocError as first:
-        styles = local_style_files(workdir)
         if not styles:
             raise
         hidden: list[tuple[Path, Path]] = []

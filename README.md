@@ -38,6 +38,21 @@ PNG/JPG/GIF/SVG format are shown in place; PDF/EPS figures appear as a link that
 file in a new tab. If the conversion fails, the message names the cause and lists the files
 that were received.
 
+### Running in a GitHub Codespace
+
+The repository carries a dev-container definition, so a Codespace comes with the Python
+environment ready:
+
+1. On GitHub: *Code → Codespaces → Create codespace* (pick the branch you want to try).
+2. In the Codespace terminal run `./papassist.sh`. VS Code forwards port 8765 and opens the
+   app in a browser tab; the address is also listed under the *PORTS* tab.
+3. Open papers as usual. Files are uploaded to the Codespace in small pieces and converted
+   in the background, so the forwarding proxy cannot cut the request off.
+
+If an upload still fails, drag the archive into the VS Code file explorer (it lands in
+`/workspaces/Paper_Read_Assist/`) and type that path into the path box. GitHub Actions
+cannot host the app: a workflow runner has no browser that can reach it.
+
 ### Reading
 
 * **Hover** a symbol, an emphasised term, a citation or a "Theorem 2.5" link: the panel on

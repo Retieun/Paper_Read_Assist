@@ -615,12 +615,35 @@
   $('#toc').addEventListener('click', (e) => { const a = e.target.closest('[data-jump]'); if (a) { e.preventDefault(); jumpTo(a.dataset.jump); } });
 
   // ------------------------------------------------------------------ opening papers
+  const CHUNK = 2 * 1024 * 1024;
+  const dzStatus = (msg) => { $('#dz-status').textContent = msg; if ($('#dropzone').hidden) toast(msg, 4000); };
+  // Files go up in small pieces and the conversion runs as a background job that we poll:
+  // one big, slow request gets cut off by proxies (e.g. a GitHub Codespace) with "Failed to fetch".
+  async function uploadFiles(files, onStatus) {
+    const { upload } = await api('/api/uploads', { method: 'POST' });
+    const total = files.reduce((n, f) => n + f.size, 0); let sent = 0;
+    for (const f of files) {
+      let off = 0;
+      do {
+        const blob = f.slice(off, off + CHUNK);
+        await api(`/api/uploads/${upload}/chunk?name=${encodeURIComponent(f.name)}&offset=${off}`, { method: 'POST', body: blob, headers: { 'Content-Type': 'application/octet-stream' } });
+        off += blob.size; sent += blob.size;
+        onStatus(`Uploading ${f.name}… ${total ? Math.round(100 * sent / total) : 100}%`);
+      } while (off < f.size);
+    }
+    return api(`/api/uploads/${upload}/finish`, { method: 'POST' });
+  }
+  function openFailed(e) {
+    let msg = 'Could not open: ' + e.message;
+    if (/failed to fetch|networkerror|load failed/i.test(e.message)) msg += ' — the connection to the server was cut off. If PapAssist runs in a Codespace or behind a proxy, copy the file into the workspace folder and type its path in the box instead.';
+    dzStatus(msg); toast(msg, 15000); console.error('open failed', e);
+  }
   async function openFiles(files) {
-    const fd = new FormData();
-    for (const f of files) fd.append('files', f, f.name);
-    $('#dz-status').textContent = `Converting ${files.length} file(s)…`;
-    try { const res = await api('/api/papers/upload', { method: 'POST', body: fd }); await loadPaper(res.paper_id); }
-    catch (e) { $('#dz-status').textContent = 'Could not open: ' + e.message; toast('Could not open: ' + e.message, 12000); console.error('open failed', e); }
+    try {
+      const { job } = await uploadFiles(files, dzStatus);
+      const result = await pollJob(job, (msg) => dzStatus(msg || 'Converting…'));
+      await loadPaper(result.paper_id);
+    } catch (e) { openFailed(e); }
   }
   $('#btn-open').addEventListener('click', () => $('#file-input').click());
   $('#file-input').addEventListener('change', (e) => { if (e.target.files.length) openFiles(Array.from(e.target.files)); e.target.value = ''; });
@@ -634,9 +657,12 @@
   $('#path-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const path = $('#path-input').value.trim(); if (!path) return;
-    $('#dz-status').textContent = 'Converting…';
-    try { const res = await api('/api/papers/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) }); await loadPaper(res.paper_id); }
-    catch (err) { $('#dz-status').textContent = 'Could not open: ' + err.message; }
+    dzStatus('Opening ' + path + '…');
+    try {
+      const { job } = await api('/api/papers/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path, background: true }) });
+      const result = await pollJob(job, (msg) => dzStatus(msg || 'Converting…'));
+      await loadPaper(result.paper_id);
+    } catch (err) { openFailed(err); }
   });
   $('#arxiv-form').addEventListener('submit', async (e) => {
     e.preventDefault();

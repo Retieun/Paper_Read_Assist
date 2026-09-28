@@ -8,6 +8,17 @@ import webbrowser
 from pathlib import Path
 
 
+def codespace_url(port: int):
+    """The public address of a forwarded port when running inside a GitHub Codespace."""
+    import os
+
+    name = os.environ.get("CODESPACE_NAME")
+    domain = os.environ.get("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
+    if name and domain:
+        return f"https://{name}-{port}.{domain}/"
+    return None
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="papassist", description="Reading assistant for mathematics papers.")
     ap.add_argument("paper", nargs="?", help=".tex file, folder, .zip or .tar.gz of LaTeX sources to open")
@@ -49,6 +60,9 @@ def main(argv=None) -> int:
     if not args.no_browser:
         threading.Timer(1.2, lambda: webbrowser.open(url)).start()
     print(f"PapAssist running at {url}  (Ctrl+C to stop)")
+    public = codespace_url(settings.port)
+    if public:
+        print(f"This is a GitHub Codespace: open {public} in your browser (also listed under the PORTS tab in VS Code).")
     import uvicorn
 
     uvicorn.run(appmod.app, host=settings.host, port=settings.port, log_level="warning")

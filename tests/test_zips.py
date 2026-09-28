@@ -1,5 +1,6 @@
 import base64
 import io
+import time
 import zipfile
 from pathlib import Path
 
@@ -132,3 +133,53 @@ def test_upload_zip_over_http_and_images_are_served(client, tmp_path):
     assert client.get(f"/api/papers/{pid}/source/figures/plot.png").status_code == 200
     assert client.get(f"/api/papers/{pid}/source/../../meta.json").status_code in (404, 400)
     client.delete(f"/api/papers/{pid}")
+
+
+def _wait_job(client, job, timeout=60):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        j = client.get(f"/api/jobs/{job}").json()
+        if j["status"] in ("done", "error"):
+            return j
+        time.sleep(0.1)
+    raise AssertionError("job did not finish")
+
+
+def test_chunked_upload_runs_the_ingest_in_the_background(client, tmp_path):
+    data = make_zip(tmp_path / "c.zip", with_figures(fixture_files())).read_bytes()
+    up = client.post("/api/uploads").json()["upload"]
+    step = 7000
+    for off in range(0, len(data), step):
+        r = client.post(f"/api/uploads/{up}/chunk", params={"name": "sub\\c.zip", "offset": off},
+                        content=data[off:off + step], headers={"Content-Type": "application/octet-stream"})
+        assert r.status_code == 200, r.text
+    last = (len(data) - 1) // step * step
+    r = client.post(f"/api/uploads/{up}/chunk", params={"name": "c.zip", "offset": last}, content=data[last:])
+    assert r.status_code == 200 and r.json()["received"] == len(data)          # a retried last chunk is fine
+    r = client.post(f"/api/uploads/{up}/chunk", params={"name": "c.zip", "offset": 0}, content=b"x")
+    assert r.status_code == 409                                                # out of order is refused
+    job = client.post(f"/api/uploads/{up}/finish").json()["job"]
+    j = _wait_job(client, job)
+    assert j["status"] == "done", j
+    pid = j["result"]["paper_id"]
+    assert client.get(f"/api/papers/{pid}").json()["title"] == "A Sample Paper on Persistence"
+    assert client.get(f"/api/papers/{pid}/source/figures/plot.png").status_code == 200
+    assert client.post(f"/api/uploads/{up}/finish").status_code == 404        # consumed
+
+
+def test_background_jobs_report_ingest_errors(client, tmp_path):
+    up = client.post("/api/uploads").json()["upload"]
+    assert client.post(f"/api/uploads/{up}/finish").status_code == 400        # nothing uploaded
+    up = client.post("/api/uploads").json()["upload"]
+    client.post(f"/api/uploads/{up}/chunk", params={"name": "paper.pdf", "offset": 0}, content=b"%PDF-1.4 fake")
+    job = client.post(f"/api/uploads/{up}/finish").json()["job"]
+    j = _wait_job(client, job)
+    assert j["status"] == "error" and "No .tex file" in j["message"] and "paper.pdf" in j["message"]
+    # the path box uses the same background path
+    (tmp_path / "only.pdf").write_bytes(b"%PDF")
+    job = client.post("/api/papers/open", json={"path": str(tmp_path / "only.pdf"), "background": True}).json()["job"]
+    j = _wait_job(client, job)
+    assert j["status"] == "error" and "could not ingest" in j["message"]
+    job = client.post("/api/papers/open", json={"path": str(FIXTURE), "background": True}).json()["job"]
+    j = _wait_job(client, job)
+    assert j["status"] == "done" and j["message"].startswith("Saving")     # last progress message

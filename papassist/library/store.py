@@ -236,10 +236,28 @@ class Library:
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
-    def add(self, inputs: list[Path], main_name: Optional[str] = None, extra_meta: Optional[dict] = None, pid: Optional[str] = None) -> Paper:
-        """Ingest sources (files, folders, archives) and return the Paper."""
+    def add(
+        self,
+        inputs: list[Path],
+        main_name: Optional[str] = None,
+        extra_meta: Optional[dict] = None,
+        pid: Optional[str] = None,
+        progress=None,
+    ) -> Paper:
+        """Ingest sources (files, folders, archives) and return the Paper.
+
+        ``progress(message)`` is called at each stage; the stages are also printed
+        to the terminal so a failure can be located.
+        """
+
+        def say(msg: str) -> None:
+            print(f"[papassist] {msg}", flush=True)
+            if progress:
+                progress(msg)
+
         tmp = self.root / f"_s{int(time.time() * 1000) % 100000000:08d}"
         try:
+            say("Unpacking sources: " + ", ".join(Path(p).name for p in inputs)[:200])
             self._stage_sources(tmp / "source", [Path(p) for p in inputs])
             source = tmp / "source"
             main = (source / main_name) if main_name else find_main_tex(source)
@@ -254,8 +272,11 @@ class Library:
             for p in sorted(source.rglob("*.tex")):
                 digest.update(p.read_bytes())
             pid = pid or ("p" + digest.hexdigest()[:10])
+            say(f"Converting LaTeX with pandoc (main file: {main.relative_to(source).as_posix()})…")
             doc = ingest_folder(source, pid, main=main)
+            say(f"Building the glossary ({len(doc.blocks)} blocks, {len(doc.math)} formulas)…")
             glossary = build_glossary(doc)
+            say("Saving the paper…")
             folder = self.root / pid
             if folder.exists():
                 _rmtree_retry(folder)

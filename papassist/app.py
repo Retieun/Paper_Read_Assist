@@ -10,7 +10,7 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -208,6 +208,23 @@ def delete_paper(pid: str) -> dict:
 class OpenIn(BaseModel):
     path: str
     main: Optional[str] = None
+    background: bool = False
+
+
+def _ingest_job(paths: list[Path], main_name: Optional[str] = None, cleanup: Optional[Path] = None) -> str:
+    """Ingest in a background thread; the HTTP request returns at once and the client polls the job."""
+
+    def work(progress):
+        try:
+            paper = library.add(paths, main_name=main_name, progress=progress)
+        except Exception as e:
+            raise RuntimeError(f"could not ingest ({type(e).__name__}): {e}") from e
+        finally:
+            if cleanup is not None:
+                shutil.rmtree(cleanup, ignore_errors=True)
+        return _after_add(paper)
+
+    return run_task("ingest", work)
 
 
 def _after_add(paper: Paper) -> dict:
@@ -221,6 +238,8 @@ def open_local(body: OpenIn) -> dict:
     p = Path(body.path).expanduser()
     if not p.exists():
         raise HTTPException(400, f"path not found: {p}")
+    if body.background:
+        return {"job": _ingest_job([p], main_name=body.main)}
     try:
         paper = library.add([p], main_name=body.main)
     except Exception as e:  # surface the cause to the UI
@@ -247,6 +266,56 @@ async def upload(files: list[UploadFile] = File(...)) -> dict:
         return _after_add(paper)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+# Chunked uploads: the browser sends each file in small pieces and then asks for the
+# ingest to start in the background.  Proxies in front of the server (a GitHub
+# Codespace, a remote desktop) may cap the size or duration of one request; small
+# requests that return immediately get through where one big, slow POST is cut off.
+_uploads: dict[str, dict] = {}
+
+
+@app.post("/api/uploads")
+def upload_begin() -> dict:
+    import uuid
+
+    uid = uuid.uuid4().hex[:12]
+    with _lock:
+        _uploads[uid] = {"dir": Path(tempfile.mkdtemp(prefix="papassist-upload-")), "files": []}
+    return {"upload": uid}
+
+
+@app.post("/api/uploads/{uid}/chunk")
+async def upload_chunk(uid: str, request: Request, name: str = Query(...), offset: int = Query(0)) -> dict:
+    up = _uploads.get(uid)
+    if up is None:
+        raise HTTPException(404, "unknown upload (was the server restarted?); please open the file again")
+    safe = Path(name.replace("\\", "/")).name or "upload"
+    dest = up["dir"] / safe
+    data = await request.body()
+    have = dest.stat().st_size if dest.exists() else 0
+    if offset == have - len(data) and len(data) > 0:
+        return {"received": have}  # a retried chunk that already arrived
+    if offset != have:
+        raise HTTPException(409, f"chunk out of order for {safe}: have {have} bytes, got offset {offset}")
+    with open(dest, "ab") as fh:
+        fh.write(data)
+    if safe not in up["files"]:
+        up["files"].append(safe)
+    return {"received": have + len(data)}
+
+
+@app.post("/api/uploads/{uid}/finish")
+def upload_finish(uid: str) -> dict:
+    with _lock:
+        up = _uploads.pop(uid, None)
+    if up is None:
+        raise HTTPException(404, "unknown upload (was the server restarted?); please open the file again")
+    paths = [up["dir"] / n for n in up["files"] if (up["dir"] / n).exists()]
+    if not paths:
+        shutil.rmtree(up["dir"], ignore_errors=True)
+        raise HTTPException(400, "no files were uploaded")
+    return {"job": _ingest_job(paths, cleanup=up["dir"])}
 
 
 # ---------------------------------------------------------------------------
